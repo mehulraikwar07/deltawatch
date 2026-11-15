@@ -1,0 +1,210 @@
+{
+  "generated_at": "2026-11-15T02:40:54.492033Z",
+  "description": "NASA-ISRO NISAR L2 GCOV Geometry-Compatible Orbit Scene Pairs",
+  "regions": {
+    "nagapattinam": {
+      "region_id": "nagapattinam",
+      "region_name": "Nagapattinam & Cauvery Delta, Tamil Nadu",
+      "bbox": [
+        79.65,
+        10.6,
+        79.95,
+        11.0
+      ],
+      "center": [
+        79.8,
+        10.8
+      ],
+      "zoom": 11.3,
+      "pairs": [
+        {
+          "id": "NAG_PAIR_01_PEAK",
+          "label": "Peak Inundation Crest (Pre-Cyclone vs. Post-Fengal Flood)",
+          "orbit_track": 112,
+          "orbit_direction": "Ascending",
+          "frame_number": 45,
+          "geometry_lock": true,
+          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+          "polarization": "Dual-Pol (HH + HV)",
+          "incidence_angle_range": [
+            33.8,
+            41.5
+          ],
+          "before": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5",
+            "date": "2026-10-14T00:32:15Z",
+            "nominal_looks": 4.2,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5"
+          },
+          "after": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5",
+            "date": "2026-11-06T00:32:15Z",
+            "nominal_looks": 4.1,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5"
+          },
+          "flood_event": "Post-Monsoon Cauvery Distributary Breach & Coastal Inundation",
+          "active": true
+        },
+        {
+          "id": "NAG_PAIR_02_RECESSION",
+          "label": "Flood Recession & Soil Desiccation (Peak Flood vs. Drainage)",
+          "orbit_track": 112,
+          "orbit_direction": "Ascending",
+          "frame_number": 45,
+          "geometry_lock": true,
+          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+          "polarization": "Dual-Pol (HH + HV)",
+          "incidence_angle_range": [
+            33.8,
+            41.5
+          ],
+          "before": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5",
+            "date": "2026-11-06T00:32:15Z",
+            "nominal_looks": 4.2,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5"
+          },
+          "after": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261122T003215_M01_P_J_001.h5",
+            "date": "2026-11-22T00:32:15Z",
+            "nominal_looks": 4.1,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261122T003215_M01_P_J_001.h5"
+          },
+          "flood_event": "Post-Flood Distributary Sluice Drainage & Silt Exposure",
+          "active": false
+        },
+        {
+          "id": "NAG_PAIR_03_AGRO",
+          "label": "Seasonal Samba Rice Paddy Sowing Inundation",
+          "orbit_track": 112,
+          "orbit_direction": "Ascending",
+          "frame_number": 45,
+          "geometry_lock": true,
+          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+          "polarization": "Dual-Pol (HH + HV)",
+          "incidence_angle_range": [
+            33.8,
+            41.5
+          ],
+          "before": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20260920T003215_M01_P_J_001.h5",
+            "date": "2026-09-20T00:32:15Z",
+            "nominal_looks": 4.2,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20260920T003215_M01_P_J_001.h5"
+          },
+          "after": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5",
+            "date": "2026-10-14T00:32:15Z",
+            "nominal_looks": 4.1,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5"
+          },
+          "flood_event": "Controlled Samba Agro-Irrigation & Aquaculture Filling",
+          "active": false
+        }
+      ],
+      "live_cmr_count": 0
+    },
+    "majuli": {
+      "region_id": "majuli",
+      "region_name": "Majuli Island & Brahmaputra Floodplain, Assam",
+      "bbox": [
+        93.95,
+        26.8,
+        94.45,
+        27.15
+      ],
+      "center": [
+        94.2,
+        26.975
+      ],
+      "zoom": 11.1,
+      "pairs": [
+        {
+          "id": "MAJ_PAIR_01_PEAK",
+          "label": "Brahmaputra High-Monsoon Crest & Sand Dune Avulsion",
+          "orbit_track": 73,
+          "orbit_direction": "Descending",
+          "frame_number": 18,
+          "geometry_lock": true,
+          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+          "polarization": "Dual-Pol (HH + HV)",
+          "incidence_angle_range": [
+            33.8,
+            41.5
+          ],
+          "before": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5",
+            "date": "2026-06-04T12:15:30Z",
+            "nominal_looks": 4.2,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5"
+          },
+          "after": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5",
+            "date": "2026-06-28T12:15:30Z",
+            "nominal_looks": 4.1,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5"
+          },
+          "flood_event": "Brahmaputra Monsoonal Crest & Southern Levee Avulsion",
+          "active": true
+        },
+        {
+          "id": "MAJ_PAIR_02_RECESSION",
+          "label": "Char Land Emergence & Beel Drainage",
+          "orbit_track": 73,
+          "orbit_direction": "Descending",
+          "frame_number": 18,
+          "geometry_lock": true,
+          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+          "polarization": "Dual-Pol (HH + HV)",
+          "incidence_angle_range": [
+            33.8,
+            41.5
+          ],
+          "before": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5",
+            "date": "2026-06-28T12:15:30Z",
+            "nominal_looks": 4.2,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5"
+          },
+          "after": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260716T121530_M01_P_J_001.h5",
+            "date": "2026-07-16T12:15:30Z",
+            "nominal_looks": 4.1,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260716T121530_M01_P_J_001.h5"
+          },
+          "flood_event": "Floodplain Desiccation & Sandbar Emergence",
+          "active": false
+        },
+        {
+          "id": "MAJ_PAIR_03_AGRO",
+          "label": "Pre-Monsoon Ahu Rice & River Basin Expansion",
+          "orbit_track": 73,
+          "orbit_direction": "Descending",
+          "frame_number": 18,
+          "geometry_lock": true,
+          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+          "polarization": "Dual-Pol (HH + HV)",
+          "incidence_angle_range": [
+            33.8,
+            41.5
+          ],
+          "before": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260512T121530_M01_P_J_001.h5",
+            "date": "2026-05-12T12:15:30Z",
+            "nominal_looks": 4.2,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260512T121530_M01_P_J_001.h5"
+          },
+          "after": {
+            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5",
+            "date": "2026-06-04T12:15:30Z",
+            "nominal_looks": 4.1,
+            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5"
+          },
+          "flood_event": "Early Summer Sali & Ahu Ricefield Irrigation",
+          "active": false
+        }
+      ],
+      "live_cmr_count": 0
+    }
+  }
+}

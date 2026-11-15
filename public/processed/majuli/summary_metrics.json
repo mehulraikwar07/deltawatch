@@ -1,0 +1,84 @@
+{
+  "region_id": "majuli",
+  "region_name": "Majuli Island & Brahmaputra Floodplain, Assam",
+  "data_mode": "calibrated_baseline",
+  "processed_at": "2026-11-15T02:41:02.271787Z",
+  "bbox": [
+    93.95,
+    26.8,
+    94.45,
+    27.15
+  ],
+  "center": [
+    94.2,
+    26.975
+  ],
+  "zoom": 11.1,
+  "orbit_track": 73,
+  "orbit_direction": "Descending",
+  "frame_number": 18,
+  "geometry_lock": true,
+  "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+  "polarization": "Dual-Pol (HH + HV)",
+  "incidence_angles": [
+    33.8,
+    41.5
+  ],
+  "before_granule": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5",
+  "after_granule": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5",
+  "before_date": "2026-06-04T12:15:30Z",
+  "after_date": "2026-06-28T12:15:30Z",
+  "flood_event": "Brahmaputra Monsoonal Crest & Southern Levee Avulsion",
+  "total_swath_area_km2": 1932.69,
+  "classes": {
+    "0": {
+      "name": "Stable Land / Permanent Water",
+      "hex": "#00000000",
+      "pixel_count": 891682,
+      "area_km2": 1643.51,
+      "percentage": 85.04
+    },
+    "1": {
+      "name": "New Open Floodwater",
+      "hex": "#00F0FF",
+      "pixel_count": 55469,
+      "area_km2": 102.24,
+      "percentage": 5.29
+    },
+    "2": {
+      "name": "Flooded Vegetation / Mangroves",
+      "hex": "#FF2E93",
+      "pixel_count": 41616,
+      "area_km2": 76.7,
+      "percentage": 3.97
+    },
+    "3": {
+      "name": "Managed Paddy / Aquaculture Inundation",
+      "hex": "#10B981",
+      "pixel_count": 30684,
+      "area_km2": 56.56,
+      "percentage": 2.93
+    },
+    "4": {
+      "name": "Wetland Recession / Drying",
+      "hex": "#FFB800",
+      "pixel_count": 8741,
+      "area_km2": 16.11,
+      "percentage": 0.83
+    },
+    "5": {
+      "name": "Uncertain / Low-SNR / Shadow",
+      "hex": "#64748B",
+      "pixel_count": 20384,
+      "area_km2": 37.57,
+      "percentage": 1.94
+    }
+  },
+  "validation_stats": {
+    "lee_filter_window": "5x5",
+    "equivalent_number_of_looks": 4.15,
+    "speckle_suppression_index": 0.88,
+    "coregistration_rmse_m": 0.42,
+    "radiometric_resolution_db": 0.5
+  }
+}

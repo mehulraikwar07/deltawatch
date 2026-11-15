@@ -1,0 +1,84 @@
+{
+  "region_id": "nagapattinam",
+  "region_name": "Nagapattinam & Cauvery Delta, Tamil Nadu",
+  "data_mode": "calibrated_baseline",
+  "processed_at": "2026-11-15T02:40:57.589203Z",
+  "bbox": [
+    79.65,
+    10.6,
+    79.95,
+    11.0
+  ],
+  "center": [
+    79.8,
+    10.8
+  ],
+  "zoom": 11.3,
+  "orbit_track": 112,
+  "orbit_direction": "Ascending",
+  "frame_number": 45,
+  "geometry_lock": true,
+  "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
+  "polarization": "Dual-Pol (HH + HV)",
+  "incidence_angles": [
+    33.8,
+    41.5
+  ],
+  "before_granule": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5",
+  "after_granule": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5",
+  "before_date": "2026-10-14T00:32:15Z",
+  "after_date": "2026-11-06T00:32:15Z",
+  "flood_event": "Post-Monsoon Cauvery Distributary Breach & Coastal Inundation",
+  "total_swath_area_km2": 1460.72,
+  "classes": {
+    "0": {
+      "name": "Stable Land / Permanent Water",
+      "hex": "#00000000",
+      "pixel_count": 891683,
+      "area_km2": 1242.16,
+      "percentage": 85.04
+    },
+    "1": {
+      "name": "New Open Floodwater",
+      "hex": "#00F0FF",
+      "pixel_count": 63897,
+      "area_km2": 89.01,
+      "percentage": 6.09
+    },
+    "2": {
+      "name": "Flooded Vegetation / Mangroves",
+      "hex": "#FF2E93",
+      "pixel_count": 42396,
+      "area_km2": 59.06,
+      "percentage": 4.04
+    },
+    "3": {
+      "name": "Managed Paddy / Aquaculture Inundation",
+      "hex": "#10B981",
+      "pixel_count": 21261,
+      "area_km2": 29.62,
+      "percentage": 2.03
+    },
+    "4": {
+      "name": "Wetland Recession / Drying",
+      "hex": "#FFB800",
+      "pixel_count": 8955,
+      "area_km2": 12.47,
+      "percentage": 0.85
+    },
+    "5": {
+      "name": "Uncertain / Low-SNR / Shadow",
+      "hex": "#64748B",
+      "pixel_count": 20384,
+      "area_km2": 28.4,
+      "percentage": 1.94
+    }
+  },
+  "validation_stats": {
+    "lee_filter_window": "5x5",
+    "equivalent_number_of_looks": 4.15,
+    "speckle_suppression_index": 0.88,
+    "coregistration_rmse_m": 0.42,
+    "radiometric_resolution_db": 0.5
+  }
+}

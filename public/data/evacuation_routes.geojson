@@ -1,0 +1,124 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "EVAC-NAG-01",
+        "name": "NH-32 Coastal Relief Corridor (Elevated Causeway)",
+        "region_id": "nagapattinam",
+        "status": "PASSABLE - ELEVATED",
+        "elevation_m": 12.5,
+        "type": "highway"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [79.8427, 10.7656],
+          [79.8100, 10.7500],
+          [79.7500, 10.7600],
+          [79.6360, 10.7725]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "EVAC-NAG-02",
+        "name": "Vedaranyam - Thiruvarur Inland Artery",
+        "region_id": "nagapattinam",
+        "status": "PASSABLE - CAUTION NEAR LAGOON",
+        "elevation_m": 8.2,
+        "type": "secondary"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [79.8510, 10.3725],
+          [79.7200, 10.4500],
+          [79.6360, 10.7725]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SHELTER-NAG-01",
+        "name": "Thiruvarur Central Flood Relief Shelter",
+        "region_id": "nagapattinam",
+        "capacity": 2500,
+        "type": "shelter"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.6360, 10.7725]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SHELTER-NAG-02",
+        "name": "Nagapattinam Port Cyclone Staging Depot",
+        "region_id": "nagapattinam",
+        "capacity": 1800,
+        "type": "shelter"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.8427, 10.7656]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "EVAC-MAJ-01",
+        "name": "Kamalabari - Garamur High Embankment Spine",
+        "region_id": "majuli",
+        "status": "PASSABLE - PRIMARY EMBANKMENT",
+        "elevation_m": 15.0,
+        "type": "highway"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [94.1780, 26.9020],
+          [94.1950, 26.9300],
+          [94.2100, 26.9600]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "EVAC-MAJ-02",
+        "name": "Garamur - Salmora High-Ground Access",
+        "region_id": "majuli",
+        "status": "PASSABLE - MONITORED",
+        "elevation_m": 11.8,
+        "type": "secondary"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [94.2100, 26.9600],
+          [94.2800, 26.9400],
+          [94.3400, 26.8850]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SHELTER-MAJ-01",
+        "name": "Garamur Central High-Altitude Mound Shelter",
+        "region_id": "majuli",
+        "capacity": 3200,
+        "type": "shelter"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [94.2100, 26.9600]
+      }
+    }
+  ]
+}
