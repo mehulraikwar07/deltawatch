@@ -687,8 +687,8 @@ export function SarMapViewer({
       const satId = map.getLayer('satellite')
         ? 'satellite'
         : map.getLayer('esri-imagery-layer')
-        ? 'esri-imagery-layer'
-        : null;
+          ? 'esri-imagery-layer'
+          : null;
 
       if (satId) {
         map.setPaintProperty(satId, 'raster-saturation', sarIntensityMode ? -1 : 0);
@@ -715,8 +715,8 @@ export function SarMapViewer({
       const changeLayerId = afterMap.getLayer('change-layer')
         ? 'change-layer'
         : afterMap.getLayer('change-overlay-layer')
-        ? 'change-overlay-layer'
-        : null;
+          ? 'change-overlay-layer'
+          : null;
 
       if (changeLayerId) {
         if (sarIntensityMode) {
@@ -738,8 +738,8 @@ export function SarMapViewer({
     const changeLayerId = map?.getLayer('change-layer')
       ? 'change-layer'
       : map?.getLayer('change-overlay-layer')
-      ? 'change-overlay-layer'
-      : null;
+        ? 'change-overlay-layer'
+        : null;
 
     if (!map || !changeLayerId) return;
     map.setLayoutProperty(changeLayerId, 'visibility', showChangeOverlay ? 'visible' : 'none');
