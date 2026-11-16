@@ -110,11 +110,38 @@ export function SarMapViewer({
     }
   }, [compareMode]);
 
-  // Smooth 3D Pitch and Bearing Animation (Pitch: 75°, Bearing: 25°, Duration: 2000ms)
+  // Smooth 3D Pitch and Bearing Animation (Pitch: 58°, Bearing: 20°, Duration: 1800ms)
   useEffect(() => {
-    const pitch = is3D ? 75 : 0;
-    const bearing = is3D ? 25 : 0;
-    const duration = is3D ? 2000 : 1200;
+    const pitch = is3D ? 58 : 0;
+    const bearing = is3D ? 20 : 0;
+    const duration = is3D ? 1800 : 1200;
+
+    const applyTerrain = (map: Map | null) => {
+      if (!map || !map.isStyleLoaded()) return;
+      try {
+        if (!map.getSource('aws-dem')) {
+          map.addSource('aws-dem', {
+            type: 'raster-dem',
+            tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+            encoding: 'terrarium',
+            tileSize: 256,
+            minzoom: 0,
+            maxzoom: 15,
+          });
+        }
+        if (is3D) {
+          map.setTerrain({ source: 'aws-dem', exaggeration: 1.35 });
+        } else {
+          map.setTerrain(null);
+        }
+      } catch (err) {
+        console.warn('[MapLibre DEM Update]', err);
+      }
+    };
+
+    applyTerrain(mapAfterRef.current);
+    applyTerrain(mapBeforeRef.current);
+
     if (mapAfterRef.current) {
       mapAfterRef.current.easeTo({ pitch, bearing, duration });
     }
@@ -320,8 +347,8 @@ export function SarMapViewer({
     ],
   };
 
-  // Helper to add AWS Terrarium DEM with Extreme 15x Exaggeration
-  const setupExtremeDemTerrain = (map: Map) => {
+  // Helper to add AWS Terrarium DEM with Natural Smooth Elevation (exaggeration: 1.35)
+  const setupDemTerrain = (map: Map, enable: boolean) => {
     try {
       if (!map.getSource('aws-dem')) {
         map.addSource('aws-dem', {
@@ -329,9 +356,15 @@ export function SarMapViewer({
           tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
           encoding: 'terrarium',
           tileSize: 256,
+          minzoom: 0,
+          maxzoom: 15,
         });
       }
-      map.setTerrain({ source: 'aws-dem', exaggeration: 15 });
+      if (enable) {
+        map.setTerrain({ source: 'aws-dem', exaggeration: 1.35 });
+      } else {
+        map.setTerrain(null);
+      }
     } catch (err) {
       console.warn('[MapLibre AWS DEM Setup]', err);
     }
@@ -401,11 +434,11 @@ export function SarMapViewer({
     const cacheBuster = Date.now();
 
     // ==========================================
-    // MAP 1 (AFTER): AFTER FCC + 6-CLASS FLOOD MASK + POLYGONS + EVACUATION + 15x DEM
+    // MAP 1 (AFTER): AFTER FCC + 6-CLASS FLOOD MASK + POLYGONS + EVACUATION + DEM
     // ==========================================
     mapAfter.on('load', () => {
-      // 0. Enable Extreme 3D Micro-Topography (15x exaggeration)
-      setupExtremeDemTerrain(mapAfter);
+      // 0. Enable Smooth 3D Micro-Topography when 3D is active
+      setupDemTerrain(mapAfter, is3D);
 
       // 1. After SAR FCC image layer (linear resampling for crisp, unpixelated 20m pixels)
       mapAfter.addSource('after-fcc-source', {
@@ -587,8 +620,8 @@ export function SarMapViewer({
     // MAP 2 (BEFORE): ONLY PRE-EVENT BASELINE RADAR (ZERO FLOOD MASK!)
     // ==========================================
     mapBefore.on('load', () => {
-      // 0. Enable Extreme 3D DEM Terrain on mapBefore as well
-      setupExtremeDemTerrain(mapBefore);
+      // 0. Enable Smooth 3D DEM Terrain on mapBefore when 3D is active
+      setupDemTerrain(mapBefore, is3D);
 
       // Clean Before SAR FCC layer: dry baseline, normal channels, NO flood mask overlay!
       mapBefore.addSource('before-fcc-source', {
@@ -879,3 +912,5 @@ export function SarMapViewer({
     </div>
   );
 }
+
+export default SarMapViewer;

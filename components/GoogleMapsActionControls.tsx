@@ -66,7 +66,7 @@ export function GoogleMapsActionControls({
         )}
       </button>
 
-      {/* 2b. 3D DEM TERRAIN TOGGLE BUTTON (Animates to 75° pitch & 25° bearing) */}
+      {/* 2b. 3D DEM TERRAIN TOGGLE BUTTON (Animates to 58° pitch & 20° bearing) */}
       <button
         onClick={onToggle3D}
         className={`w-10 h-10 rounded-full border shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex items-center justify-center transition-all cursor-pointer group ${
@@ -74,7 +74,7 @@ export function GoogleMapsActionControls({
             ? 'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white border-cyan-400 font-bold shadow-[0_0_15px_rgba(0,240,255,0.5)] ring-2 ring-cyan-400/40'
             : 'bg-[#1E1F22]/95 hover:bg-[#2A2B2F] text-white/80 hover:text-cyan-300 border-white/10'
         }`}
-        title={is3D ? 'Flatten View (2D Nadir)' : 'Enable Extreme 3D DEM Terrain (75° Pitch)'}
+        title={is3D ? 'Flatten View (2D Nadir)' : 'Enable Smooth 3D Terrain Perspective'}
       >
         <span className="text-xs font-black tracking-tight font-mono">3D</span>
       </button>
