@@ -2,8 +2,12 @@ export const dynamic = 'force-dynamic';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import dns from 'node:dns';
 import { NextResponse } from 'next/server';
 import type { SummaryMetrics, EvidencePolygonProperties } from '@/types/sar';
+
+// PREVENTS LOCAL MACBOOK NETWORK TIMEOUTS (HTTP 500: fetch failed)
+dns.setDefaultResultOrder('ipv4first');
 
 interface ReportRequestBody {
   metrics: SummaryMetrics;
@@ -59,18 +63,31 @@ export async function POST(req: Request) {
     const systemInstruction = `You are the Lead Radar Hydrologist for DELTAWATCH, an operational NASA Space Apps Challenge 2026 platform ("Dancing with the SARs").
 You analyze active NISAR L-Band (1.25 GHz / 24 cm wavelength) dual-polarimetric (HH+HV) L2 GCOV (Geocoded Co-Polarized Backscatter) observation datasets for Indian delta basins.
 
-CORE RULES:
-1. Directly answer the user's specific question first with actionable, quantitative insights based on the provided calibrated telemetry.
-2. Incorporate exact radar scattering physics when relevant:
-   - Specular Reflection (ΔHH ≤ -3.5 dB): Smooth open floodwaters acting as a mirror, deflecting pulses away from antenna.
-   - Dihedral Double-Bounce (ΔHH ≥ +2.5 dB): Standing floodwater under mangrove/forest canopies reflecting between vertical trunks and horizontal water plane.
-   - Volume / Canopy Scattering: Attenuation through vegetation layers.
-   - Ground Inundation: Managed agricultural bunds, paddy crop submergence tolerances (48-72h limit).
-3. Ground answers with the provided active scene data: region name, swath area, class breakdowns, and inspected polygon metrics if provided.
-4. STRICT FORMATTING REQUIREMENTS:
-   - Output clean, professional Markdown with clear section headings (## or ###), bold highlights, and bullet points.
-   - NEVER use LaTeX math syntax or delimiters. Do NOT use $, \\Delta, \\text{}, \\approx, \\le, or \\ge.
-   - Always use standard Unicode symbols instead: ΔHH, ≤, ≥, ~, →, dB, km², and ha.`;
+CRITICAL RESPONSE RULES — follow these strictly based on the user's input:
+
+1. CASUAL GREETINGS ("hi", "hello", "hey", "what's up", etc.):
+   - Reply with exactly 1-2 warm, friendly sentences introducing yourself as the DELTAWATCH Lead Radar Hydrologist.
+   - Mention the active region from the telemetry and invite them to ask a question.
+   - Do NOT generate a report, sections, bullets, or any structured output.
+
+2. SHORT / SPECIFIC QUESTIONS (fewer than 15 words, e.g. "what is dihedral bounce?", "how much area is flooded?"):
+   - Answer concisely in 2-4 sentences using only the directly relevant telemetry provided.
+   - Do NOT produce headings, long bullets, or a full structured report.
+
+3. FULL STRUCTURED REPORT — ONLY when the user explicitly uses words like:
+   "summary", "report", "briefing", "full analysis", "assess", or clicks a topic pill
+   (e.g. "Crop & Farmland Loss", "Mangrove Double-Bounce", "Monsoon Runoff", "Transport & Evacuation"):
+   - Generate a comprehensive, sectioned Operational Situation Report with ## headings, bold key metrics, and bullet points.
+   - Include: Executive Summary, Radar Scattering Analysis, Class Breakdown, Socio-Ecological Risks, and Recommendations.
+
+4. DEFAULT (no prompt supplied by user):
+   - Generate the full structured report as in Rule 3.
+
+STRICT FORMATTING REQUIREMENTS (apply to ALL responses):
+- Output clean, professional Markdown. Use ## or ### headings and bullet points ONLY in full reports.
+- NEVER use LaTeX math syntax or delimiters. Do NOT use $, \\Delta, \\text{}, \\approx, \\le, or \\ge.
+- Always use standard Unicode symbols instead: ΔHH, ≤, ≥, ~, →, dB, km², ha.
+- Do not output raw asterisks or unbalanced Markdown symbols.`;
 
     const c1 = metrics.classes?.['1'] || { area_km2: 0, percentage: 0 };
     const c2 = metrics.classes?.['2'] || { area_km2: 0, percentage: 0 };
@@ -125,7 +142,7 @@ ${userPrompt || 'Provide an executive science briefing evaluating the flood exte
       body: JSON.stringify(requestPayload),
     });
 
-    // If Gemini 2.5 Flash returns 404 (model retired for newly issued Google AI Studio keys), automatically try Gemini 3.5 Flash
+    // If Gemini 2.5 Flash returns 404 (model retired for new Google AI Studio keys), fall back to Gemini 3.5 Flash
     if (res.status === 404) {
       console.log('gemini-2.5-flash returned 404, falling back to gemini-3.5-flash endpoint');
       apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
@@ -137,12 +154,7 @@ ${userPrompt || 'Provide an executive science briefing evaluating the flood exte
         },
         body: JSON.stringify(requestPayload),
       });
-      if (retryRes.ok) {
-        res = retryRes;
-      } else {
-        // If retry failed as well, capture its error response
-        res = retryRes;
-      }
+      res = retryRes;
     }
 
     // 4. Return exact error status and message if API fails (NO silent fallback)
@@ -183,17 +195,19 @@ ${userPrompt || 'Provide an executive science briefing evaluating the flood exte
       );
     }
 
-    // Return successful AI generation
     return NextResponse.json({
       report: reportText,
       model: data?.modelVersion || 'gemini-flash',
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('API /api/report unexpected server error:', error);
+    // DIAGNOSTIC FIX: Exposes the underlying network timeout reason instead of a generic 500 error
+    const detail = error?.cause?.message || error?.cause?.code || error?.message || 'Unknown network error';
+    console.error('API /api/report unexpected server error:', detail);
+
     return NextResponse.json(
       {
-        error: error?.message || String(error) || 'Internal server error while calling Gemini API',
+        error: `Network/Server Error: ${detail}`,
         status: 500,
       },
       { status: 500 }
