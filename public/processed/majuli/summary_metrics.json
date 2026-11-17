@@ -1,8 +1,8 @@
 {
   "region_id": "majuli",
   "region_name": "Majuli Island & Brahmaputra Floodplain, Assam",
-  "data_mode": "calibrated_baseline",
-  "processed_at": "2026-11-15T02:41:02.271787Z",
+  "data_mode": "real_nisar_gcov",
+  "processed_at": "2026-11-17T12:11:12Z",
   "bbox": [
     93.95,
     26.8,
@@ -14,71 +14,119 @@
     26.975
   ],
   "zoom": 11.1,
-  "orbit_track": 73,
-  "orbit_direction": "Descending",
-  "frame_number": 18,
+  "orbit_track": 40,
+  "orbit_direction": "Ascending",
+  "frame_number": 15,
   "geometry_lock": true,
   "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
   "polarization": "Dual-Pol (HH + HV)",
   "incidence_angles": [
-    33.8,
-    41.5
+    37.56,
+    40.91
   ],
-  "before_granule": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5",
-  "after_granule": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5",
-  "before_date": "2026-06-04T12:15:30Z",
-  "after_date": "2026-06-28T12:15:30Z",
-  "flood_event": "Brahmaputra Monsoonal Crest & Southern Levee Avulsion",
-  "total_swath_area_km2": 1932.69,
+  "before_granule": "NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001",
+  "after_granule": "NISAR_L2_PR_GCOV_025_040_A_015_4005_DHDH_A_20260710T230529_20260710T230603_P05023_N_F_J_001",
+  "before_date": "2026-11-07T23:05:27Z",
+  "after_date": "2026-07-10T23:05:29Z",
+  "flood_event": "Monsoon flood vs dry season: 10 Jul 2026 (river flow ~17,988 m\u00b3/s) compared with 7 Nov 2026 (~2,728 m\u00b3/s)",
+  "comparison_mode": "dry_reference_vs_monsoon",
+  "before_label": "Dry season",
+  "after_label": "Monsoon",
+  "total_swath_area_km2": 1932.67,
   "classes": {
     "0": {
-      "name": "Stable Land / Permanent Water",
+      "name": "No flood signal",
       "hex": "#00000000",
-      "pixel_count": 891682,
-      "area_km2": 1643.51,
-      "percentage": 85.04
+      "pixel_count": 1370063,
+      "area_km2": 1316.59,
+      "percentage": 68.12
     },
     "1": {
-      "name": "New Open Floodwater",
+      "name": "Floodwater (connected to the Brahmaputra)",
       "hex": "#00F0FF",
-      "pixel_count": 55469,
-      "area_km2": 102.24,
-      "percentage": 5.29
+      "pixel_count": 153327,
+      "area_km2": 147.47,
+      "percentage": 7.62
     },
     "2": {
-      "name": "Flooded Vegetation / Mangroves",
+      "name": "Flooded Vegetation near Water (likely)",
       "hex": "#FF2E93",
-      "pixel_count": 41616,
-      "area_km2": 76.7,
-      "percentage": 3.97
+      "pixel_count": 3005,
+      "area_km2": 2.89,
+      "percentage": 0.15
     },
     "3": {
-      "name": "Managed Paddy / Aquaculture Inundation",
-      "hex": "#10B981",
-      "pixel_count": 30684,
-      "area_km2": 56.56,
-      "percentage": 2.93
+      "name": "Standing Water away from the Brahmaputra (rain / paddy)",
+      "hex": "#FFC440",
+      "pixel_count": 106477,
+      "area_km2": 102.32,
+      "percentage": 5.29
     },
     "4": {
-      "name": "Wetland Recession / Drying",
-      "hex": "#FFB800",
-      "pixel_count": 8741,
-      "area_km2": 16.11,
-      "percentage": 0.83
+      "name": "Field-scale Change (not counted as flood)",
+      "hex": "#10B981",
+      "pixel_count": 378328,
+      "area_km2": 363.4,
+      "percentage": 18.81
     },
     "5": {
-      "name": "Uncertain / Low-SNR / Shadow",
+      "name": "No Valid Radar Data",
       "hex": "#64748B",
-      "pixel_count": 20384,
-      "area_km2": 37.57,
-      "percentage": 1.94
+      "pixel_count": 0,
+      "area_km2": 0.0,
+      "percentage": 0.0
     }
+  },
+  "permanent_water_km2": 217.17,
+  "river_discharge_m3s": {
+    "dry_date": 2727.98,
+    "flood_date": 17987.72
+  },
+  "rain_between_passes_mm": null,
+  "flood_validation": {
+    "flood_area_km2": 147.47,
+    "flood_share_ever_water_in_JRC_1984_2021_pct": 99.1,
+    "flood_share_jrc_occurrence_ge_10pct_pct": 92.9,
+    "landscape_share_jrc_occurrence_ge_10pct_pct": 20.4,
+    "flood_hand_median_m": 0.0,
+    "landscape_hand_median_m": 0.23,
+    "away_from_river_area_km2": 102.32,
+    "away_from_river_share_ever_water_in_JRC_pct": 35.9,
+    "normal_water_not_seen_on_flood_date_km2": 27.9,
+    "candidates_removed_by_hand_px": 29,
+    "provisional_minus_final_db_on_stable_land": 0.2
   },
   "validation_stats": {
     "lee_filter_window": "5x5",
-    "equivalent_number_of_looks": 4.15,
-    "speckle_suppression_index": 0.88,
-    "coregistration_rmse_m": 0.42,
-    "radiometric_resolution_db": 0.5
+    "equivalent_number_of_looks": 40.9,
+    "speckle_suppression_index": null,
+    "coregistration_rmse_m": null,
+    "radiometric_resolution_db": null
+  },
+  "provenance": {
+    "source": "NASA/ASF NISAR L2 GCOV: dry = NISAR_L2_GCOV_V1, flood = NISAR_L2_GCOV_PROVISIONAL_V1",
+    "before_url": "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001/NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001.h5",
+    "after_url": "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_PROVISIONAL_V1/NISAR_L2_PR_GCOV_025_040_A_015_4005_DHDH_A_20260710T230529_20260710T230603_P05023_N_F_J_001/NISAR_L2_PR_GCOV_025_040_A_015_4005_DHDH_A_20260710T230529_20260710T230603_P05023_N_F_J_001.h5",
+    "pipeline": "processing/flood_pair.py",
+    "grid_crs": "EPSG:3857 (uniform in Web Mercator; outer pixel edges = bbox corners)",
+    "ground_pixel_m_approx": 31.0,
+    "water_threshold_db": -15.0,
+    "water_threshold_otsu_raw_db": -12.25,
+    "hand_source": "ASF GLO-30 HAND (from Copernicus GLO-30 DEM)",
+    "permanent_water_reference": "JRC Global Surface Water occurrence v1.4 (1984-2021), validation only",
+    "context_series_source": "GloFAS v4 river discharge via Open-Meteo Flood API (model, not a gauge)",
+    "rules": {
+      "hand_max_m": 10.0,
+      "flooded_vegetation_max_distance_m": 1000.0,
+      "min_flood_clump_px": 6,
+      "network_seed_min_km2": 2.0,
+      "drop_db": -3.0
+    },
+    "notes": [
+      "'Before' is the dry-season reference and 'after' is the monsoon pass, so the animation reads 'normal river -> monsoon flood', not calendar order.",
+      "The flood date comes from the provisional NISAR release and the dry date from the final V1 release; their stable-land offset is reported in flood_validation.",
+      "Class 3 (water away from the river) is drawn faintly and not counted as river flood; class 4 (field-scale change) is computed but not drawn.",
+      "Nothing is field-verified; discharge/rainfall are model values, not gauge readings."
+    ]
   }
 }

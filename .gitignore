@@ -44,3 +44,6 @@ __pycache__/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local radar crop cache (large, re-downloadable)
+processing/raw/

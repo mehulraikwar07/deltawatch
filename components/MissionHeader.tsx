@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { RegionId, AvailableScenesCatalog, ScenePair } from '@/types/sar';
 
-export type CompareMode = 'before' | 'split' | 'after';
+export type CompareMode = 'before' | 'animate' | 'after';
 
 interface MissionHeaderProps {
   currentRegion: RegionId;
@@ -162,9 +162,9 @@ export function MissionHeader({
             Before
           </button>
           <button
-            onClick={() => onSelectCompareMode('split')}
+            onClick={() => onSelectCompareMode('animate')}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-              compareMode === 'split'
+              compareMode === 'animate'
                 ? 'bg-cyan-500/25 border border-cyan-400/50 text-cyan-200 font-semibold shadow-sm'
                 : 'text-white/50 hover:text-white'
             }`}

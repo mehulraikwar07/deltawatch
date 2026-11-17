@@ -7,9 +7,10 @@ export interface SearchPlace {
   type: 'town' | 'wetland' | 'river' | 'district' | 'landmark' | 'port';
   coordinates: [number, number]; // [lng, lat]
   description: string;
-  floodStatus: 'Severe Flood' | 'Flooded Canopy' | 'Managed Inundation' | 'Normal / Safe' | 'Receding';
-  tempC: number;
-  aqi: number;
+  /** Not populated: per-place flood status / weather were never measured. */
+  floodStatus?: 'Severe Flood' | 'Flooded Canopy' | 'Managed Inundation' | 'Normal / Safe' | 'Receding';
+  tempC?: number | null;
+  aqi?: number | null;
 }
 
 export interface UserProfile {
@@ -22,15 +23,16 @@ export interface UserProfile {
   isGuest: boolean;
 }
 
+/** Current-conditions card. Every field is null until a real feed is connected. */
 export interface ClimateData {
-  tempC: number;
-  feelsLikeC: number;
-  condition: string;
-  aqi: number;
-  aqiStatus: string;
-  humidity: number;
-  precipitationMm: number;
-  windKmh: number;
-  floodRisk: 'High' | 'Severe' | 'Moderate' | 'Low';
+  tempC: number | null;
+  feelsLikeC: number | null;
+  condition: string | null;
+  aqi: number | null;
+  aqiStatus: string | null;
+  humidity: number | null;
+  precipitationMm: number | null;
+  windKmh: number | null;
+  floodRisk: 'High' | 'Severe' | 'Moderate' | 'Low' | null;
   lastUpdated: string;
 }

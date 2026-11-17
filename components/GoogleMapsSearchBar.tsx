@@ -26,7 +26,7 @@ interface GoogleMapsSearchBarProps {
   onOpenAuth: () => void;
   onOpenAiReport: () => void;
   onToggleCompareMode: () => void;
-  compareMode: 'before' | 'split' | 'after';
+  compareMode: 'before' | 'animate' | 'after';
   profile: UserProfile;
   activeFilterClass: number | null;
   onToggleFilterClass: (classId: number) => void;
@@ -186,21 +186,13 @@ export function GoogleMapsSearchBar({
                     </div>
                   </div>
                 </div>
-                <div className="text-right shrink-0 pl-2">
-                  <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                      place.floodStatus === 'Severe Flood'
-                        ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                        : place.floodStatus === 'Flooded Canopy'
-                        ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
-                        : place.floodStatus === 'Managed Inundation'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-white/10 text-white/70'
-                    }`}
-                  >
-                    {place.floodStatus}
-                  </span>
-                </div>
+                {place.floodStatus && (
+                  <div className="text-right shrink-0 pl-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+                      {place.floodStatus}
+                    </span>
+                  </div>
+                )}
               </button>
             ))
           ) : (
@@ -220,15 +212,6 @@ export function GoogleMapsSearchBar({
         >
           <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
           <span>Ask Maps (AI)</span>
-        </button>
-
-        {/* Pill 2: Region Toggle Chip */}
-        <button
-          onClick={() => onSelectRegion(currentRegion === 'nagapattinam' ? 'majuli' : 'nagapattinam')}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1E1F22]/90 hover:bg-white/10 border border-white/10 text-xs font-medium text-white/90 shrink-0 shadow-md transition cursor-pointer"
-        >
-          <MapPin className="w-3.5 h-3.5 text-red-400" />
-          <span>{currentRegion === 'nagapattinam' ? 'Nagapattinam Delta' : 'Majuli Island'}</span>
         </button>
 
         {/* Pill 3: Open Flood Filter */}
@@ -257,13 +240,13 @@ export function GoogleMapsSearchBar({
           <span>Mangroves</span>
         </button>
 
-        {/* Pill 5: 50/50 Compare Mode */}
+        {/* Pill 5: Animate / Before / After */}
         <button
           onClick={onToggleCompareMode}
           className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1E1F22]/90 hover:bg-white/10 border border-white/10 text-xs font-medium text-cyan-300 shrink-0 shadow-md transition cursor-pointer"
         >
           <Sliders className="w-3 h-3 text-cyan-400" />
-          <span>Compare: {compareMode === 'split' ? '50/50' : compareMode.toUpperCase()}</span>
+          <span>View: {compareMode === 'animate' ? 'ANIMATE' : compareMode.toUpperCase()}</span>
         </button>
       </div>
     </div>

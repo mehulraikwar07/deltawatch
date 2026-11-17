@@ -12,6 +12,7 @@ import { GoogleMapsClimateModal } from './GoogleMapsClimateModal';
 import { GoogleMapsDirectionsModal } from './GoogleMapsDirectionsModal';
 import { NasaModulesSheet, type NasaModuleId } from './NasaModulesSheet';
 import { REGION_CLIMATE } from '@/lib/placesData';
+import { normalizePolygonProps } from '@/lib/metrics';
 import type {
   RegionId,
   AvailableScenesCatalog,
@@ -30,7 +31,7 @@ const SarMapViewer = dynamic(
       <div className="w-full h-full flex flex-col items-center justify-center bg-[#151922] text-slate-400 space-y-3">
         <div className="w-10 h-10 border-3 border-cyan-400 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs font-mono tracking-wider text-cyan-300">
-          CONNECTING TO GOOGLE MAPS NISAR L2 GCOV TILES...
+          LOADING MAP & RADAR LAYERS...
         </span>
       </div>
     ),
@@ -47,8 +48,8 @@ export function DeltawatchDashboard({
   initialMetrics,
 }: DeltawatchDashboardProps) {
   // Region & Map state
-  const [currentRegion, setCurrentRegion] = useState<RegionId>('nagapattinam');
-  const [compareMode, setCompareMode] = useState<CompareMode>('split');
+  const [currentRegion, setCurrentRegion] = useState<RegionId>('majuli');
+  const [compareMode, setCompareMode] = useState<CompareMode>('animate');
   const [selectedPolygon, setSelectedPolygon] = useState<EvidencePolygonProperties | null>(null);
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
   const [activePlace, setActivePlace] = useState<SearchPlace | null>(null);
@@ -56,7 +57,6 @@ export function DeltawatchDashboard({
 
   // Basemap & Layer Toggles (Google Maps style)
   const [basemap, setBasemap] = useState<BasemapType>('satellite');
-  const [is3D, setIs3D] = useState(false);
   const [layerDetails, setLayerDetails] = useState<ActiveLayerDetails>({
     showSarSwath: true,
     showFloodMask: true,
@@ -65,7 +65,8 @@ export function DeltawatchDashboard({
     showPrecipitation: false,
     showMangroveFilter: false,
     sarIntensityMode: false,
-    floodMaskOpacity: 0.88,
+    floodMaskOpacity: 1.0,
+    radarOpacity: 0,
   });
   const [activeClassFilter, setActiveClassFilter] = useState<number | null>(null);
 
@@ -91,10 +92,11 @@ export function DeltawatchDashboard({
 
   // User Profile state
   const [profile, setProfile] = useState<UserProfile>({
-    name: 'NASA Earthdata Specialist',
-    email: 'researcher@deltawatch.nasa.gov',
-    organization: 'NASA Space Apps 2026',
-    role: 'SAR Lead Hydrologist',
+    // Placeholder local profile; there is no real authentication in this app.
+    name: 'Demo User',
+    email: 'demo@example.com',
+    organization: 'Local demo',
+    role: 'Viewer',
     isSignedIn: true,
     isGuest: false,
   });
@@ -109,7 +111,9 @@ export function DeltawatchDashboard({
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted || !data.features) return;
-        const polys = data.features.map((f: any) => f.properties as EvidencePolygonProperties);
+        const polys = data.features.map((f: { properties?: Record<string, unknown> }) =>
+          normalizePolygonProps(f.properties ?? {})
+        );
         setEvidencePolys(polys);
       })
       .catch((err) => console.warn('[DeltawatchDashboard] Polygons fetch failed:', err));
@@ -133,7 +137,7 @@ export function DeltawatchDashboard({
 
   const handleSelectPolygon = (poly: EvidencePolygonProperties) => {
     setSelectedPolygon(poly);
-    setFocusCoords(poly.centroid);
+    if (poly.centroid) setFocusCoords(poly.centroid);
     setNasaSheetModule('analytics');
     setIsNasaSheetOpen(true);
     setActiveNavTab('evidence');
@@ -144,7 +148,7 @@ export function DeltawatchDashboard({
   };
 
   const handleToggleCompareMode = () => {
-    setCompareMode((prev) => (prev === 'split' ? 'after' : prev === 'after' ? 'before' : 'split'));
+    setCompareMode((prev) => (prev === 'animate' ? 'after' : prev === 'after' ? 'before' : 'animate'));
   };
 
   const handleToggleClassFilter = (classId: number) => {
@@ -192,11 +196,11 @@ export function DeltawatchDashboard({
           basemapMode={basemap}
           showChangeOverlay={layerDetails.showFloodMask}
           changeOpacity={layerDetails.floodMaskOpacity}
+          radarOpacity={layerDetails.radarOpacity}
           showPrecipitation={layerDetails.showPrecipitation}
           showEvacuationRoutes={layerDetails.showEvacuationRoutes}
           showMangroveFilter={layerDetails.showMangroveFilter}
           sarIntensityMode={layerDetails.sarIntensityMode}
-          is3D={is3D}
           activeClassFilter={activeClassFilter}
           activePlace={activePlace}
           zoomInTrigger={zoomInTrigger}
@@ -223,6 +227,34 @@ export function DeltawatchDashboard({
       )}
 
       {/* 3. GOOGLE MAPS FLOATING TOP SEARCH BAR & CATEGORY CHIPS */}
+      {/* Region switch: one button per study area */}
+      <div
+        className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${
+          isUiHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+      >
+        <div className="flex items-center gap-1 p-1 rounded-full bg-[#1E1F22]/95 backdrop-blur-xl border border-white/10 shadow-2xl">
+          {([
+            ['majuli', 'Majuli'],
+            ['nagapattinam', 'Nagapattinam'],
+          ] as [RegionId, string][]).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => id !== currentRegion && handleSelectRegion(id)}
+              aria-pressed={currentRegion === id}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+                currentRegion === id
+                  ? 'bg-cyan-500 text-[#06121F] shadow-[0_0_12px_rgba(0,240,255,0.5)]'
+                  : 'text-white/75 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div
         className={`absolute top-4 left-4 z-30 transition-all duration-300 ${
           isUiHidden ? 'opacity-0 pointer-events-none -translate-y-4' : 'opacity-100'
@@ -261,8 +293,6 @@ export function DeltawatchDashboard({
           onOpenDirections={() => setIsDirectionsOpen(true)}
           isUiHidden={isUiHidden}
           onToggleHideUi={() => setIsUiHidden(!isUiHidden)}
-          is3D={is3D}
-          onToggle3D={() => setIs3D((prev) => !prev)}
         />
       </div>
 
@@ -296,6 +326,7 @@ export function DeltawatchDashboard({
         onFocusPolygon={handleFocusPolygon}
         evidencePolys={evidencePolys}
         onFlyToRegion={(coords) => setFocusCoords(coords)}
+        regionCatalog={initialCatalog?.regions?.[currentRegion] ?? null}
       />
 
       {/* 7. GOOGLE MAPS LAYERS MODAL */}
@@ -309,6 +340,9 @@ export function DeltawatchDashboard({
         onChangeOpacity={(opacity) =>
           setLayerDetails((prev) => ({ ...prev, floodMaskOpacity: opacity }))
         }
+        onChangeRadarOpacity={(opacity) =>
+          setLayerDetails((prev) => ({ ...prev, radarOpacity: opacity }))
+        }
       />
 
       {/* 8. GOOGLE MAPS CLIMATE & AQI MODAL */}
@@ -318,6 +352,9 @@ export function DeltawatchDashboard({
         regionId={currentRegion}
         regionName={activeMetrics.region_name}
         climate={activeClimate}
+        beforeDate={activeMetrics.before_date}
+        afterDate={activeMetrics.after_date}
+        center={activeMetrics.center}
       />
 
       {/* 9. GOOGLE MAPS EVACUATION DIRECTIONS MODAL */}

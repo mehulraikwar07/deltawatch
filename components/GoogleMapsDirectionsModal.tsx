@@ -5,12 +5,9 @@ import {
   X,
   CornerUpRight,
   MapPin,
-  AlertTriangle,
-  CheckCircle2,
   Navigation,
   Car,
   Shield,
-  LifeBuoy,
 } from 'lucide-react';
 import type { RegionId } from '@/types/sar';
 
@@ -88,48 +85,14 @@ export function GoogleMapsDirectionsModal({
             </div>
           </div>
 
-          {/* Route Recommendation Cards */}
-          <div className="space-y-2.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-              Evaluated Transit Routes
-            </h3>
-
-            {/* Route 1: Safe Elevated Highway */}
-            <div className="p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  Primary Causeway (Elevated Levee)
-                </span>
-                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                  SAFE • 28 MIN
-                </span>
-              </div>
-              <p className="text-[11px] text-white/70">
-                Route avoids Class 1 specular open water zones. Highway culverts functioning normally.
-              </p>
-            </div>
-
-            {/* Route 2: Flooded Lower Road */}
-            <div className="p-3.5 rounded-2xl bg-red-950/30 border border-red-500/30 space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-red-300 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-red-400" />
-                  Coastal Link Road (NH-32 Shoreline)
-                </span>
-                <span className="text-[11px] font-mono text-red-400 bg-red-950/60 px-2 py-0.5 rounded-full border border-red-400/30">
-                  IMPASSABLE
-                </span>
-              </div>
-              <p className="text-[11px] text-white/60">
-                Intersected by 4.2 km² of Open Floodwater. Radar backscatter indicates &gt; 0.6 m standing flood sheet.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2 text-xs text-white/70">
-            <LifeBuoy className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span>NDRF & SDRF rescue boats deployed on water channels.</span>
+          {/* No route analysis exists: the previous "SAFE • 28 MIN" / "IMPASSABLE"
+              cards and "NDRF boats deployed" line were invented and are removed. */}
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Route Evaluation</h3>
+            <p className="text-[11px] text-white/60 leading-relaxed">
+              Not available. No road network has been intersected with the change polygons, so this app cannot say
+              which roads are passable. Use official district disaster-management advisories for routing.
+            </p>
           </div>
         </div>
       </div>

@@ -2,8 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Map, Marker, setWorkerUrl, type StyleSpecification } from 'maplibre-gl';
-import { Sliders, Crosshair } from 'lucide-react';
+import { Crosshair, Play, Pause } from 'lucide-react';
 import type { RegionId, SummaryMetrics, EvidencePolygonProperties } from '@/types/sar';
+import { fmtDate, fmtDb, fmtNum, normalizePolygonProps } from '@/lib/metrics';
+import { RiverFlowCard } from './RiverFlowCard';
+import { MapLegend } from './MapLegend';
 import type { CompareMode } from './MissionHeader';
 import type { BasemapType } from './GoogleMapsLayersModal';
 import type { SearchPlace } from '@/types/google-maps';
@@ -29,11 +32,11 @@ interface SarMapViewerProps {
   basemapMode?: BasemapType;
   showChangeOverlay?: boolean;
   changeOpacity?: number;
+  radarOpacity?: number;
   showPrecipitation?: boolean;
   showEvacuationRoutes?: boolean;
   showMangroveFilter?: boolean;
   sarIntensityMode?: boolean;
-  is3D?: boolean;
   activeClassFilter?: number | null;
   activePlace?: SearchPlace | null;
   zoomInTrigger?: number;
@@ -54,11 +57,11 @@ export function SarMapViewer({
   basemapMode = 'satellite',
   showChangeOverlay = true,
   changeOpacity = 0.88,
+  radarOpacity = 0,
   showPrecipitation = false,
   showEvacuationRoutes = false,
   showMangroveFilter = false,
   sarIntensityMode = false,
-  is3D = false,
   activeClassFilter = null,
   activePlace = null,
   zoomInTrigger = 0,
@@ -73,10 +76,22 @@ export function SarMapViewer({
   const mapAfterRef = useRef<Map | null>(null);
   const placeMarkerRef = useRef<Marker | null>(null);
 
-  // Slider position (0% = After only, 50% = Split, 100% = Before only)
-  const [sliderPos, setSliderPos] = useState<number>(50);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const sliderContainerRef = useRef<HTMLDivElement>(null);
+  // Before → After animation (replaces the old swipe slider).
+  // Only the two real scenes are shown: the before image fades into the after image while the
+  // change overlay fades in. No in-between frames are invented.
+  const ANIM_MS = 4500;
+  const [beforeOpacity, setBeforeOpacity] = useState<number>(1);
+  const [animProgress, setAnimProgress] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const animStartRef = useRef<number | null>(null);
+  const animElapsedRef = useRef<number>(0);
+  const overlayReadyRef = useRef<boolean>(false);
+  const showChangeOverlayRef = useRef<boolean>(showChangeOverlay);
+  const changeOpacityRef = useRef<number>(changeOpacity);
+  const radarOpacityRef = useRef<number>(radarOpacity);
+  radarOpacityRef.current = radarOpacity;
+  showChangeOverlayRef.current = showChangeOverlay;
+  changeOpacityRef.current = changeOpacity;
 
   // Live cursor telemetry readout
   const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -87,11 +102,13 @@ export function SarMapViewer({
     y: number;
     id: string;
     className: string;
-    area: number;
-    delta: number;
+    area: number | null;
+    delta: number | null;
   } | null>(null);
 
   const bbox = metrics.bbox; // [west, south, east, north]
+  // IMERG tile date: the "after" acquisition date; GIBS "default" (latest) if missing.
+  const imergDate = /^\d{4}-\d{2}-\d{2}$/.test(fmtDate(metrics.after_date)) ? fmtDate(metrics.after_date) : 'default';
   const imageCoordinates: [[number, number], [number, number], [number, number], [number, number]] = [
     [bbox[0], bbox[3]], // Top-Left: west, north
     [bbox[2], bbox[3]], // Top-Right: east, north
@@ -99,29 +116,59 @@ export function SarMapViewer({
     [bbox[0], bbox[1]], // Bottom-Left: west, south
   ];
 
-  // Sync compareMode from parent to sliderPos
+  // Set the change overlay opacity on the after map (no-op until the layer exists)
+  const setOverlayOpacity = (o: number) => {
+    const map = mapAfterRef.current;
+    if (!map || !overlayReadyRef.current) return;
+    const id = map.getLayer('change-layer') ? 'change-layer' : map.getLayer('change-overlay-layer') ? 'change-overlay-layer' : null;
+    if (id) map.setPaintProperty(id, 'raster-opacity', o);
+    // Outlines fade with the overlay (o is 0..changeOpacity)
+    const k = changeOpacityRef.current > 0 ? Math.min(1, o / changeOpacityRef.current) : 0;
+    if (map.getLayer('flood-outline-halo')) map.setPaintProperty('flood-outline-halo', 'line-opacity', 0.75 * k);
+    if (map.getLayer('flood-outline')) map.setPaintProperty('flood-outline', 'line-opacity', k);
+  };
+
+  // Drive the animation / static modes
   useEffect(() => {
     if (compareMode === 'before') {
-      setSliderPos(100);
-    } else if (compareMode === 'split') {
-      setSliderPos(50);
-    } else if (compareMode === 'after') {
-      setSliderPos(0);
+      setBeforeOpacity(1);
+      setAnimProgress(0);
+      setOverlayOpacity(0);
+      return;
     }
-  }, [compareMode]);
-
-  // Smooth 3D Pitch and Bearing Animation (Pitch: 75°, Bearing: 25°, Duration: 2000ms)
-  useEffect(() => {
-    const pitch = is3D ? 75 : 0;
-    const bearing = is3D ? 25 : 0;
-    const duration = is3D ? 2000 : 1200;
-    if (mapAfterRef.current) {
-      mapAfterRef.current.easeTo({ pitch, bearing, duration });
+    if (compareMode === 'after' || !isPlaying) {
+      if (compareMode === 'after') {
+        setBeforeOpacity(0);
+        setAnimProgress(1);
+        setOverlayOpacity(changeOpacityRef.current);
+      }
+      return;
     }
-    if (mapBeforeRef.current) {
-      mapBeforeRef.current.easeTo({ pitch, bearing, duration });
-    }
-  }, [is3D]);
+    // 'animate': loop of ANIM_MS — hold before (0–20%), crossfade + overlay fade-in (20–60%),
+    // hold after (60–92%), quick fade back to before (92–100%).
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    let raf = 0;
+    const tick = (now: number) => {
+      if (animStartRef.current === null) animStartRef.current = now - animElapsedRef.current;
+      const elapsed = (now - animStartRef.current) % ANIM_MS;
+      animElapsedRef.current = elapsed;
+      const p = elapsed / ANIM_MS;
+      let mix: number;
+      if (p < 0.2) mix = 0;
+      else if (p < 0.6) mix = ease((p - 0.2) / 0.4);
+      else if (p < 0.92) mix = 1;
+      else mix = 1 - ease((p - 0.92) / 0.08);
+      setBeforeOpacity(1 - mix);
+      setAnimProgress(mix);
+      setOverlayOpacity(showChangeOverlayRef.current ? mix * changeOpacityRef.current : 0);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      animStartRef.current = null;
+    };
+  }, [compareMode, isPlaying]);
 
   // Handle zoom in trigger
   useEffect(() => {
@@ -254,7 +301,8 @@ export function SarMapViewer({
       'nasa-gibs-precip': {
         type: 'raster',
         tiles: [
-          'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate/default/2026-06-20/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png',
+          // Rainfall for the date of the "after" scene (was hard-coded to 2026-06-20).
+          `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate/default/${imergDate}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
         ],
         tileSize: 256,
         maxzoom: 6,
@@ -320,23 +368,6 @@ export function SarMapViewer({
     ],
   };
 
-  // Helper to add AWS Terrarium DEM with Extreme 15x Exaggeration
-  const setupExtremeDemTerrain = (map: Map) => {
-    try {
-      if (!map.getSource('aws-dem')) {
-        map.addSource('aws-dem', {
-          type: 'raster-dem',
-          tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-          encoding: 'terrarium',
-          tileSize: 256,
-        });
-      }
-      map.setTerrain({ source: 'aws-dem', exaggeration: 15 });
-    } catch (err) {
-      console.warn('[MapLibre AWS DEM Setup]', err);
-    }
-  };
-
   // Initialize both maps (Map 1: After / Base, Map 2: Before / Clipped)
   useEffect(() => {
     if (!mapContainerAfterRef.current || !mapContainerBeforeRef.current) return;
@@ -352,6 +383,7 @@ export function SarMapViewer({
       zoom: metrics.zoom,
       maxZoom: 18,
       minZoom: 6,
+      maxPitch: 0, // flat 2D view only (3D terrain removed)
       attributionControl: false,
     });
 
@@ -363,6 +395,7 @@ export function SarMapViewer({
       zoom: metrics.zoom,
       maxZoom: 18,
       minZoom: 6,
+      maxPitch: 0, // flat 2D view only (3D terrain removed)
       attributionControl: false,
       interactive: false,
     });
@@ -400,13 +433,26 @@ export function SarMapViewer({
 
     const cacheBuster = Date.now();
 
+    // Dry-season river (normal water) drawn on both maps under the flood, when the run produced it
+    const riverUrl = `/processed/${regionId}/river_overlay.webp?v=${cacheBuster}`;
+    const addRiverLayer = (map: Map) => {
+      fetch(riverUrl, { method: 'HEAD' })
+        .then((r) => {
+          if (!r.ok || map.getSource('river-overlay-source')) return;
+          map.addSource('river-overlay-source', { type: 'image', url: riverUrl, coordinates: imageCoordinates });
+          const beforeId = map.getLayer('change-overlay-layer') ? 'change-overlay-layer' : undefined;
+          map.addLayer(
+            { id: 'river-overlay-layer', type: 'raster', source: 'river-overlay-source', paint: { 'raster-opacity': 1, 'raster-resampling': 'nearest' } },
+            beforeId
+          );
+        })
+        .catch(() => {});
+    };
+
     // ==========================================
     // MAP 1 (AFTER): AFTER FCC + 6-CLASS FLOOD MASK + POLYGONS + EVACUATION + 15x DEM
     // ==========================================
     mapAfter.on('load', () => {
-      // 0. Enable Extreme 3D Micro-Topography (15x exaggeration)
-      setupExtremeDemTerrain(mapAfter);
-
       // 1. After SAR FCC image layer (linear resampling for crisp, unpixelated 20m pixels)
       mapAfter.addSource('after-fcc-source', {
         type: 'image',
@@ -419,10 +465,12 @@ export function SarMapViewer({
         type: 'raster',
         source: 'after-fcc-source',
         paint: {
-          'raster-opacity': 0.98,
+          'raster-opacity': radarOpacityRef.current,
           'raster-resampling': 'linear',
         },
       });
+
+      addRiverLayer(mapAfter);
 
       // 2. 6-Class DELTA-SAR Change Mask (linear resampling for smooth anti-aliased gradient edges)
       mapAfter.addSource('change-overlay-source', {
@@ -442,6 +490,8 @@ export function SarMapViewer({
       });
 
       // 3. Evidence Polygons GeoJSON layer
+      overlayReadyRef.current = true;
+
       mapAfter.addSource('evidence-polygons-source', {
         type: 'geojson',
         data: `/processed/${regionId}/evidence_polygons.geojson?v=${cacheBuster}`,
@@ -454,6 +504,35 @@ export function SarMapViewer({
         source: 'evidence-polygons-source',
         paint: {
           'fill-opacity': 0.0,
+        },
+      });
+
+      // Always-on class outlines so small flood patches stand out on the satellite basemap:
+      // a dark halo underneath for contrast, then the class colour on top.
+      mapAfter.addLayer({
+        id: 'flood-outline-halo',
+        type: 'line',
+        source: 'evidence-polygons-source',
+        // Outline only the flood classes; class 3 is drawn faintly by the overlay alone when the
+        // run is a dry-vs-monsoon flood map (it is 'water away from the river', not flood).
+        filter: metrics.comparison_mode === 'dry_reference_vs_monsoon'
+          ? ['in', ['get', 'class_id'], ['literal', [1, 2]]]
+          : ['has', 'class_id'],
+        paint: { 'line-color': '#000000', 'line-width': 4.5, 'line-blur': 1.5, 'line-opacity': 0.75 },
+      });
+      mapAfter.addLayer({
+        id: 'flood-outline',
+        type: 'line',
+        source: 'evidence-polygons-source',
+        // Outline only the flood classes; class 3 is drawn faintly by the overlay alone when the
+        // run is a dry-vs-monsoon flood map (it is 'water away from the river', not flood).
+        filter: metrics.comparison_mode === 'dry_reference_vs_monsoon'
+          ? ['in', ['get', 'class_id'], ['literal', [1, 2]]]
+          : ['has', 'class_id'],
+        paint: {
+          'line-color': ['match', ['get', 'class_id'], 1, '#00F0FF', 2, '#FF2E93', 3, '#10B981', 4, '#FFB800', '#FFFFFF'],
+          'line-width': 2.0,
+          'line-opacity': 1.0,
         },
       });
 
@@ -558,14 +637,14 @@ export function SarMapViewer({
         if (!e.features || e.features.length === 0) return;
         mapAfter.getCanvas().style.cursor = 'pointer';
         const feat = e.features[0];
-        const props = feat.properties as any;
+        const props = normalizePolygonProps((feat.properties ?? {}) as Record<string, unknown>);
         setHoveredPoly({
           x: e.point.x,
           y: e.point.y,
           id: props.id,
           className: props.class_name,
-          area: Number(props.area_km2),
-          delta: Number(props.delta_hh_db),
+          area: props.area_km2,
+          delta: props.delta_hh_db,
         });
       });
 
@@ -578,7 +657,8 @@ export function SarMapViewer({
       mapAfter.on('click', 'evidence-polygons-hitbox', (e) => {
         if (!e.features || e.features.length === 0) return;
         const feat = e.features[0];
-        const props = feat.properties as EvidencePolygonProperties;
+        // MapLibre stringifies arrays (centroid) and may drop nulls; normalise first.
+        const props = normalizePolygonProps((feat.properties ?? {}) as Record<string, unknown>);
         onSelectPolygon(props);
       });
     });
@@ -587,9 +667,6 @@ export function SarMapViewer({
     // MAP 2 (BEFORE): ONLY PRE-EVENT BASELINE RADAR (ZERO FLOOD MASK!)
     // ==========================================
     mapBefore.on('load', () => {
-      // 0. Enable Extreme 3D DEM Terrain on mapBefore as well
-      setupExtremeDemTerrain(mapBefore);
-
       // Clean Before SAR FCC layer: dry baseline, normal channels, NO flood mask overlay!
       mapBefore.addSource('before-fcc-source', {
         type: 'image',
@@ -602,10 +679,11 @@ export function SarMapViewer({
         type: 'raster',
         source: 'before-fcc-source',
         paint: {
-          'raster-opacity': 0.98,
+          'raster-opacity': radarOpacityRef.current,
           'raster-resampling': 'linear',
         },
       });
+      addRiverLayer(mapBefore);
     });
 
     mapAfterRef.current = mapAfter;
@@ -713,6 +791,14 @@ export function SarMapViewer({
     map.setPaintProperty(changeLayerId, 'raster-opacity', changeOpacity);
   }, [showChangeOverlay, changeOpacity]);
 
+  // Radar (FCC) image opacity on both maps — 0 by default so the satellite basemap shows through
+  useEffect(() => {
+    const a = mapAfterRef.current;
+    const b = mapBeforeRef.current;
+    if (a?.getLayer('after-fcc-layer')) a.setPaintProperty('after-fcc-layer', 'raster-opacity', radarOpacity);
+    if (b?.getLayer('before-fcc-layer')) b.setPaintProperty('before-fcc-layer', 'raster-opacity', radarOpacity);
+  }, [radarOpacity]);
+
   // Update NASA GIBS Precipitation Layer Visibility
   useEffect(() => {
     const map = mapAfterRef.current;
@@ -764,80 +850,51 @@ export function SarMapViewer({
   }, [activeClassFilter, showMangroveFilter]);
 
   // Slider Drag Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true);
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDragging || !sliderContainerRef.current) return;
-      const rect = sliderContainerRef.current.getBoundingClientRect();
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-      const percentage = (x / rect.width) * 100;
-      setSliderPos(percentage);
-
-      if (percentage > 85) onSelectCompareMode('before');
-      else if (percentage < 15) onSelectCompareMode('after');
-      else onSelectCompareMode('split');
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      window.addEventListener('touchmove', handleMouseMove);
-      window.addEventListener('touchend', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('touchmove', handleMouseMove);
-      window.removeEventListener('touchend', handleMouseUp);
-    };
-  }, [isDragging, onSelectCompareMode]);
-
   return (
-    <div ref={sliderContainerRef} className="relative w-full h-full overflow-hidden select-none bg-black">
+    <div className="relative w-full h-full overflow-hidden select-none bg-black">
       {/* 1. Base Map: AFTER SCENE (100% full width, background layer) */}
       <div ref={mapContainerAfterRef} className="absolute inset-0 w-full h-full z-0" />
 
-      {/* 2. Top Clipped Map: BEFORE SCENE (Clipped to left of slider line with inset) */}
+      {/* 2. Top Map: BEFORE SCENE, faded out by the animation */}
       <div
         className="absolute inset-0 pointer-events-none overflow-hidden z-10"
-        style={{
-          clipPath: `inset(0 ${100 - sliderPos}% 0 0)`,
-        }}
+        style={{ opacity: beforeOpacity }}
       >
         <div ref={mapContainerBeforeRef} className="w-full h-full pointer-events-none" />
       </div>
 
-      {/* 3. Glowing Swipe Slider Divider Line & Center Draggable Handle */}
-      {sliderPos > 0.5 && sliderPos < 99.5 && (
-        <div
-          className="absolute top-0 bottom-0 z-20 pointer-events-auto cursor-ew-resize flex items-center justify-center group"
-          style={{ left: `${sliderPos}%`, width: '32px', marginLeft: '-16px' }}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-        >
-          {/* Vertical Divider Line with Cyan Neon Glow */}
-          <div className="w-[2px] h-full bg-gradient-to-b from-cyan-400 via-sky-300 to-indigo-500 shadow-[0_0_12px_#00F0FF,0_0_24px_rgba(0,240,255,0.7)] group-hover:bg-cyan-200 transition-colors" />
-
-          {/* Central Circular Handle */}
-          <div className="absolute w-8 h-8 rounded-full bg-[#090D1A]/95 border-2 border-cyan-400 flex items-center justify-center shadow-[0_0_16px_rgba(0,240,255,0.8)] text-white group-hover:scale-110 transition-transform">
-            <Sliders className="w-3.5 h-3.5 text-cyan-300 rotate-90 drop-shadow-[0_0_6px_#00F0FF]" />
+      {/* 3. Animation player: date label, progress and play/pause */}
+      <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+        <div className="bg-[#1E1F22]/90 backdrop-blur-xl border border-white/10 pl-2 pr-4 py-1.5 rounded-full flex items-center gap-3 shadow-2xl text-white">
+          {compareMode === 'animate' ? (
+            <button
+              type="button"
+              onClick={() => setIsPlaying((p) => !p)}
+              className="w-7 h-7 rounded-full bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/50 flex items-center justify-center cursor-pointer"
+              title={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5 text-cyan-300" /> : <Play className="w-3.5 h-3.5 text-cyan-300" />}
+            </button>
+          ) : (
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 pl-2">{compareMode}</span>
+          )}
+          <span className={`text-xs font-mono tabular-nums flex flex-col items-center leading-tight ${animProgress < 0.5 ? 'text-white font-bold' : 'text-white/40'}`}>
+            {metrics.comparison_mode === 'dry_reference_vs_monsoon' && <span className="text-[9px] font-sans uppercase tracking-wider text-blue-300">{metrics.before_label ?? 'Dry season'}</span>}
+            {fmtDate(metrics.before_date)}
+          </span>
+          <div className="relative w-28 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-400 to-blue-500" style={{ width: `${animProgress * 100}%` }} />
           </div>
+          <span className={`text-xs font-mono tabular-nums flex flex-col items-center leading-tight ${animProgress >= 0.5 ? 'text-white font-bold' : 'text-white/40'}`}>
+            {metrics.comparison_mode === 'dry_reference_vs_monsoon' && <span className="text-[9px] font-sans uppercase tracking-wider text-cyan-300">{metrics.after_label ?? 'Monsoon'}</span>}
+            {fmtDate(metrics.after_date)}
+          </span>
         </div>
-      )}
+      </div>
+
+      {/* 3b. River flow context: why these two dates */}
+      <RiverFlowCard regionId={regionId} metrics={metrics} />
+      <MapLegend metrics={metrics} />
 
       {/* 4. Bottom-Left Live Cursor Coordinate & Split Percentage Pill */}
       <div className="absolute bottom-5 left-5 z-20 pointer-events-auto">
@@ -850,7 +907,7 @@ export function SarMapViewer({
           </span>
           <span className="text-white/20">|</span>
           <span className="text-cyan-300 font-semibold">
-            {sliderPos > 50 ? `${Math.round(sliderPos)}% Pre` : `${Math.round(100 - sliderPos)}% Post`}
+            {animProgress < 0.5 ? 'Before' : 'After'}
           </span>
         </div>
       </div>
@@ -867,10 +924,10 @@ export function SarMapViewer({
           </div>
           <div className="flex items-center gap-3 text-[11px] tabular-nums">
             <span>
-              Area: <strong className="font-mono text-emerald-300">{hoveredPoly.area} km²</strong>
+              Area: <strong className="font-mono text-emerald-300">{fmtNum(hoveredPoly.area, 3)} km²</strong>
             </span>
             <span>
-              ΔHH: <strong className="font-mono text-cyan-300">{hoveredPoly.delta > 0 ? `+${hoveredPoly.delta}` : hoveredPoly.delta} dB</strong>
+              ΔHH: <strong className="font-mono text-cyan-300">{fmtDb(hoveredPoly.delta)}</strong>
             </span>
           </div>
           <div className="text-[9px] text-white/40 mt-1">Click to inspect radar evidence</div>

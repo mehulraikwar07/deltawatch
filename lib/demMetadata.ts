@@ -1,4 +1,12 @@
 /**
+ * NOT USED by the app any more (2026-11 cleanup).
+ *
+ * This block was shown in the UI as "ground-truth calibration" for the flood
+ * classes, but no LULC or DEM data is loaded or used anywhere in processing,
+ * and the accuracy figures below were never verified against the NRSC source.
+ * Do not re-display these values as measurements of this app's output.
+ */
+/**
  * Metadata of LULC & DEM Map of India 2024-25
  * Source: National Remote Sensing Centre (NRSC), ISRO
  * Bhuvan Thematic Services (IRS P6 AWiFS Sensor)

@@ -17,154 +17,197 @@ import {
 import {
   CloudRain,
   Thermometer,
-  Wind,
-  Gauge,
   Droplets,
-  AlertTriangle,
   RefreshCw,
   ShieldCheck,
-  CheckCircle2,
   ExternalLink,
   Waves,
-  Activity,
 } from 'lucide-react';
 import type { RegionId } from '@/types/sar';
 import type { ClimateData } from '@/types/google-maps';
+import { fmtNum, fmtUnit } from '@/lib/metrics';
 
 interface ClimateTabProps {
   regionId: RegionId;
   regionName?: string;
   climate?: ClimateData;
+  /** Scene-pair dates (ISO). The query window is 14 days before → 3 days after. */
+  beforeDate?: string | null;
+  afterDate?: string | null;
+  /** [lng, lat] to query; defaults to the region's main town. */
+  center?: [number, number] | null;
+}
+
+const DEFAULT_COORDS: Record<string, { lat: number; lon: number }> = {
+  nagapattinam: { lat: 10.76, lon: 79.84 },
+  majuli: { lat: 26.95, lon: 94.17 },
+};
+
+function toYmd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Window from 14 days before the first scene to 3 days after the second, clipped to yesterday. */
+function computeWindow(beforeDate?: string | null, afterDate?: string | null): { start: string; end: string } | null {
+  const b = beforeDate ? new Date(beforeDate) : null;
+  const a = afterDate ? new Date(afterDate) : null;
+  if (!b || !a || isNaN(b.getTime()) || isNaN(a.getTime())) return null;
+  const start = new Date(b.getTime() - 14 * 86400000);
+  const yesterday = new Date(Date.now() - 86400000);
+  const endRaw = new Date(a.getTime() + 3 * 86400000);
+  const end = endRaw > yesterday ? yesterday : endRaw;
+  if (end <= start) return null;
+  return { start: toYmd(start), end: toYmd(end) };
 }
 
 interface DailyClimatePoint {
   date: string;
   displayDate: string;
-  rainfall: number; // PRECTOTCORR in mm/day
-  temp: number;     // T2M in °C
+  rainfall: number | null; // PRECTOTCORR in mm/day
+  temp: number | null;     // T2M in °C
 }
 
 interface DailyDischargePoint {
   date: string;
   displayDate: string;
-  discharge: number; // m3/s
+  discharge: number | null; // m3/s
 }
 
-export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
+export function ClimateTab(props: ClimateTabProps) {
+  return <ClimateTabInner key={`${props.regionId}|${props.beforeDate ?? ''}|${props.afterDate ?? ''}`} {...props} />;
+}
+
+function ClimateTabInner({ regionId, beforeDate, afterDate, center }: ClimateTabProps) {
   const [dataPoints, setDataPoints] = useState<DailyClimatePoint[]>([]);
   const [dischargePoints, setDischargePoints] = useState<DailyDischargePoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataSource, setDataSource] = useState<'nasa-power-live' | 'nasa-power-calibrated'>('nasa-power-live');
-  const [dischargeSource, setDischargeSource] = useState<'open-meteo-live' | 'glofas-calibrated'>('open-meteo-live');
-  const [peakRainfall, setPeakRainfall] = useState<{ value: number; date: string }>({ value: 0, date: '' });
-  const [peakDischarge, setPeakDischarge] = useState<{ value: number; date: string }>({ value: 0, date: '' });
-  const [meanTemp, setMeanTemp] = useState<number>(0);
-  const [totalPrecip, setTotalPrecip] = useState<number>(0);
+  // null = loaded OK; string = why it is unavailable. No synthetic fallback series.
+  const [powerError, setPowerError] = useState<string | null>(null);
+  const [dischargeError, setDischargeError] = useState<string | null>(null);
+  const [peakRainfall, setPeakRainfall] = useState<{ value: number | null; date: string }>({ value: null, date: '' });
+  const [peakDischarge, setPeakDischarge] = useState<{ value: number | null; date: string }>({ value: null, date: '' });
+  const [meanTemp, setMeanTemp] = useState<number | null>(null);
+  const [totalPrecip, setTotalPrecip] = useState<number | null>(null);
 
-  const isNag = regionId === 'nagapattinam';
-  const coords = isNag ? { lat: 10.76, lon: 79.84 } : { lat: 26.95, lon: 94.17 };
-  const dateRange = isNag
-    ? { start: '20241018', end: '20241128' }
-    : { start: '20240601', end: '20240715' };
+  const coords =
+    center && Number.isFinite(center[0]) && Number.isFinite(center[1])
+      ? { lat: Math.round(center[1] * 100) / 100, lon: Math.round(center[0] * 100) / 100 }
+      : DEFAULT_COORDS[regionId] || DEFAULT_COORDS.nagapattinam;
+  const queryWindow = computeWindow(beforeDate, afterDate);
+  const dateRange = queryWindow
+    ? { start: queryWindow.start.replace(/-/g, ''), end: queryWindow.end.replace(/-/g, '') }
+    : null;
 
-  // Fetch from NASA POWER API & Open-Meteo Flood API directly in the browser
+  function processPoints(points: DailyClimatePoint[]) {
+    setDataPoints(points);
+
+    let maxRain: number | null = null;
+    let maxRainDate = '';
+    let sumTemp = 0;
+    let nTemp = 0;
+    let sumRain = 0;
+    let nRain = 0;
+
+    points.forEach((p) => {
+      if (p.rainfall !== null) {
+        if (maxRain === null || p.rainfall > maxRain) {
+          maxRain = p.rainfall;
+          maxRainDate = p.displayDate;
+        }
+        sumRain += p.rainfall;
+        nRain++;
+      }
+      if (p.temp !== null) {
+        sumTemp += p.temp;
+        nTemp++;
+      }
+    });
+
+    setPeakRainfall({ value: maxRain, date: maxRainDate });
+    setTotalPrecip(nRain ? Math.round(sumRain) : null);
+    setMeanTemp(nTemp ? Math.round((sumTemp / nTemp) * 10) / 10 : null);
+  }
+  // Fetch from NASA POWER API & Open-Meteo Flood API directly in the browser.
+  // On failure the chart shows "unavailable" — never a synthetic series.
   useEffect(() => {
+    // State starts fresh for every region / scene pair because the wrapper
+    // below re-mounts this component with a new key.
     let isMounted = true;
-    setLoading(true);
 
     const fetchClimateData = async () => {
-      // 1. Fetch NASA POWER API
-      const powerUrl = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,T2M&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${dateRange.start}&end=${dateRange.end}&format=JSON`;
+      if (!queryWindow || !dateRange) {
+        if (isMounted) {
+          setPowerError('scene dates missing from summary_metrics.json');
+          setDischargeError('scene dates missing from summary_metrics.json');
+          setLoading(false);
+        }
+        return;
+      }
 
+      // 1. NASA POWER daily precipitation + 2 m temperature
+      const powerUrl = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,T2M&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${dateRange.start}&end=${dateRange.end}&format=JSON`;
       try {
         const response = await fetch(powerUrl, { cache: 'force-cache' });
-        if (!response.ok) throw new Error(`NASA POWER returned status ${response.status}`);
+        if (!response.ok) throw new Error(`NASA POWER returned HTTP ${response.status}`);
         const json = await response.json();
+        const precData = json?.properties?.parameter?.PRECTOTCORR as Record<string, number> | undefined;
+        const tempData = json?.properties?.parameter?.T2M as Record<string, number> | undefined;
+        const fill = json?.header?.fill_value ?? -999;
 
-        const precData = json?.properties?.parameter?.PRECTOTCORR;
-        const tempData = json?.properties?.parameter?.T2M;
-
-        if (precData && tempData && Object.keys(precData).length > 0) {
-          const points: DailyClimatePoint[] = Object.keys(precData).map((dateKey) => {
-            const r = Math.max(0, Number(precData[dateKey]) || 0);
-            const t = Number(tempData[dateKey]) || 28;
-            const year = dateKey.slice(0, 4);
-            const month = dateKey.slice(4, 6);
-            const day = dateKey.slice(6, 8);
-            const d = new Date(Number(year), Number(month) - 1, Number(day));
-            const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
+        const points: DailyClimatePoint[] = Object.keys(precData || {})
+          .map((dateKey) => {
+            const r = Number(precData?.[dateKey]);
+            const t = Number(tempData?.[dateKey]);
+            const d = new Date(Number(dateKey.slice(0, 4)), Number(dateKey.slice(4, 6)) - 1, Number(dateKey.slice(6, 8)));
             return {
               date: dateKey,
-              displayDate,
-              rainfall: Math.round(r * 10) / 10,
-              temp: Math.round(t * 10) / 10,
+              displayDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              rainfall: Number.isFinite(r) && r !== fill ? Math.round(r * 10) / 10 : null,
+              temp: Number.isFinite(t) && t !== fill ? Math.round(t * 10) / 10 : null,
             };
-          });
+          })
+          .filter((p) => p.rainfall !== null || p.temp !== null);
 
-          if (isMounted) {
-            processPoints(points);
-            setDataSource('nasa-power-live');
-          }
-        } else {
-          throw new Error('Empty NASA POWER data payload');
-        }
+        if (points.length === 0) throw new Error('NASA POWER returned no valid values for this window yet');
+        if (isMounted) processPoints(points);
       } catch (err) {
-        console.warn('[ClimateTab] NASA POWER direct fetch fell back to calibrated MERRA-2 baseline:', err);
-        if (isMounted) {
-          const fallbackPoints = generateCalibratedFallback(isNag);
-          processPoints(fallbackPoints);
-          setDataSource('nasa-power-calibrated');
-        }
+        console.warn('[ClimateTab] NASA POWER unavailable:', err);
+        if (isMounted) setPowerError(err instanceof Error ? err.message : String(err));
       }
 
-      // 2. Fetch Open-Meteo Flood API (River Discharge in m3/s)
-      const fStart = isNag ? '2024-10-18' : '2024-06-01';
-      const fEnd = isNag ? '2024-11-28' : '2024-07-15';
-      const floodUrl = `https://flood-api.open-meteo.com/v1/flood?latitude=${coords.lat}&longitude=${coords.lon}&daily=river_discharge&start_date=${fStart}&end_date=${fEnd}`;
-
+      // 2. Open-Meteo Flood API (GloFAS modelled river discharge, m³/s)
+      const floodUrl = `https://flood-api.open-meteo.com/v1/flood?latitude=${coords.lat}&longitude=${coords.lon}&daily=river_discharge&start_date=${queryWindow.start}&end_date=${queryWindow.end}`;
       try {
         const floodRes = await fetch(floodUrl, { cache: 'force-cache' });
-        if (!floodRes.ok) throw new Error(`Open-Meteo flood returned status ${floodRes.status}`);
+        if (!floodRes.ok) throw new Error(`Open-Meteo flood API returned HTTP ${floodRes.status}`);
         const floodJson = await floodRes.json();
-        const times = floodJson.daily?.time as string[];
-        const discharges = floodJson.daily?.river_discharge as (number | null)[];
+        const times = (floodJson.daily?.time as string[]) || [];
+        const discharges = (floodJson.daily?.river_discharge as (number | null)[]) || [];
 
-        if (times && discharges && times.length > 0) {
-          let maxQ = 0;
-          let maxQDate = '';
-          const pts: DailyDischargePoint[] = times.map((t, i) => {
-            const raw = discharges[i];
-            const q = raw != null && !isNaN(raw) ? Math.round(raw * 10) / 10 : (isNag ? 1150 : 18500);
-            const d = new Date(t);
-            const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            if (q > maxQ) {
-              maxQ = q;
-              maxQDate = displayDate;
-            }
-            return { date: t, displayDate, discharge: q };
-          });
-
-          if (isMounted && pts.length > 0 && maxQ > 0) {
-            setDischargePoints(pts);
-            setPeakDischarge({ value: Math.round(maxQ), date: maxQDate });
-            setDischargeSource('open-meteo-live');
-            setLoading(false);
-            return;
+        let maxQ: number | null = null;
+        let maxQDate = '';
+        const pts: DailyDischargePoint[] = times.map((t, i) => {
+          const raw = discharges[i];
+          const q = raw != null && Number.isFinite(raw) ? Math.round(raw * 10) / 10 : null;
+          const displayDate = new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          if (q !== null && (maxQ === null || q > maxQ)) {
+            maxQ = q;
+            maxQDate = displayDate;
           }
+          return { date: t, displayDate, discharge: q };
+        });
+
+        if (maxQ === null) throw new Error('no modelled discharge at this point for this window');
+        if (isMounted) {
+          setDischargePoints(pts);
+          setPeakDischarge({ value: Math.round(maxQ), date: maxQDate });
         }
       } catch (err) {
-        console.warn('[ClimateTab] Open-Meteo Flood API fallback to GloFAS model:', err);
+        console.warn('[ClimateTab] Open-Meteo flood API unavailable:', err);
+        if (isMounted) setDischargeError(err instanceof Error ? err.message : String(err));
       }
 
-      // High-resolution GloFAS calibrated hydrograph fallback
-      if (isMounted) {
-        const fallback = generateGlofasDischarge(isNag);
-        setDischargePoints(fallback.points);
-        setPeakDischarge(fallback.peak);
-        setDischargeSource('glofas-calibrated');
-        setLoading(false);
-      }
+      if (isMounted) setLoading(false);
     };
 
     fetchClimateData();
@@ -172,29 +215,10 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
     return () => {
       isMounted = false;
     };
-  }, [regionId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regionId, beforeDate, afterDate, coords.lat, coords.lon]);
 
-  const processPoints = (points: DailyClimatePoint[]) => {
-    setDataPoints(points);
 
-    let maxRain = 0;
-    let maxRainDate = '';
-    let sumTemp = 0;
-    let sumRain = 0;
-
-    points.forEach((p) => {
-      if (p.rainfall > maxRain) {
-        maxRain = p.rainfall;
-        maxRainDate = p.displayDate;
-      }
-      sumRain += p.rainfall;
-      sumTemp += p.temp;
-    });
-
-    setPeakRainfall({ value: Math.round(maxRain * 10) / 10, date: maxRainDate });
-    setTotalPrecip(Math.round(sumRain));
-    setMeanTemp(Math.round((sumTemp / Math.max(1, points.length)) * 10) / 10);
-  };
 
   return (
     <div className="flex flex-col space-y-4 font-sans text-white select-none">
@@ -220,13 +244,14 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
         <div className="flex items-center gap-1.5 text-[10px] font-mono">
           <span
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full border ${
-              dataSource === 'nasa-power-live'
-                ? 'bg-emerald-950/60 border-emerald-400/40 text-emerald-300'
-                : 'bg-cyan-950/60 border-cyan-400/40 text-cyan-300'
+              powerError
+                ? 'bg-amber-950/60 border-amber-400/40 text-amber-300'
+                : 'bg-emerald-950/60 border-emerald-400/40 text-emerald-300'
             }`}
+            title={powerError ?? undefined}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{dataSource === 'nasa-power-live' ? 'NASA POWER LIVE API' : 'NASA POWER CALIBRATED'}</span>
+            <span>{loading ? 'LOADING…' : powerError ? 'NASA POWER UNAVAILABLE' : 'NASA POWER API'}</span>
           </span>
         </div>
       </div>
@@ -243,10 +268,10 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
             <span className="text-[10px] text-white/40 font-mono">{peakRainfall.date}</span>
           </div>
           <div className="text-xl font-extrabold text-cyan-400 font-mono">
-            {peakRainfall.value} <span className="text-xs font-normal text-white/60">mm/day</span>
+            {fmtNum(peakRainfall.value, 1)} <span className="text-xs font-normal text-white/60">mm/day</span>
           </div>
           <p className="text-[10px] text-white/40 mt-0.5">
-            Convective burst trigger
+            Max daily value in window
           </p>
         </div>
 
@@ -260,10 +285,10 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
             <span className="text-[10px] text-cyan-400 font-mono">{peakDischarge.date}</span>
           </div>
           <div className="text-xl font-extrabold text-[#00E5FF] font-mono">
-            {peakDischarge.value.toLocaleString()} <span className="text-xs font-normal text-white/60">m³/s</span>
+            {fmtNum(peakDischarge.value, 0)} <span className="text-xs font-normal text-white/60">m³/s</span>
           </div>
           <p className="text-[10px] text-white/40 mt-0.5 truncate">
-            {isNag ? 'Cauvery Coleroon crest' : 'Brahmaputra crest'}
+            GloFAS model, nearest river cell
           </p>
         </div>
 
@@ -277,7 +302,7 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
             <span className="text-[10px] text-sky-400 font-mono">SUM</span>
           </div>
           <div className="text-xl font-extrabold text-sky-400 font-mono">
-            {totalPrecip} <span className="text-xs font-normal text-white/60">mm</span>
+            {fmtNum(totalPrecip, 0)} <span className="text-xs font-normal text-white/60">mm</span>
           </div>
           <p className="text-[10px] text-white/40 mt-0.5">
             Observation window total
@@ -294,10 +319,10 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
             <span className="text-[10px] text-amber-400 font-mono">AVG</span>
           </div>
           <div className="text-xl font-extrabold text-amber-400 font-mono">
-            {meanTemp}°C
+            {fmtUnit(meanTemp, '°C', 1)}
           </div>
           <p className="text-[10px] text-white/40 mt-0.5">
-            High tropospheric moisture
+            Mean 2 m air temperature
           </p>
         </div>
       </div>
@@ -307,15 +332,13 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
         <div className="flex items-center justify-between text-xs px-1">
           <div className="flex items-center gap-2">
             <Waves className="w-4 h-4 text-[#00E5FF]" />
-            <span className="font-bold text-white">River Discharge & Water Level Surge ($m^3/s$)</span>
+            <span className="font-bold text-white">Modelled River Discharge (m³/s)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-950/60 border border-blue-400/30 text-blue-300">
-              CREST: {peakDischarge.value.toLocaleString()} m³/s ({peakDischarge.date})
+              MAX: {fmtNum(peakDischarge.value, 0)} m³/s{peakDischarge.date ? ` (${peakDischarge.date})` : ''}
             </span>
-            <span className="text-[10px] font-mono text-white/40">
-              {dischargeSource === 'open-meteo-live' ? 'OPEN-METEO FLOOD API' : 'GLOFAS HYDROGRAPH'}
-            </span>
+            <span className="text-[10px] font-mono text-white/40">OPEN-METEO FLOOD API (GLOFAS)</span>
           </div>
         </div>
 
@@ -323,7 +346,11 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
           {loading && dischargePoints.length === 0 ? (
             <div className="w-full h-full flex flex-col items-center justify-center space-y-2 text-slate-400">
               <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="text-xs font-mono text-cyan-300">STREAMING FLOOD DISCHARGE HYDROGRAPH...</span>
+              <span className="text-xs font-mono text-cyan-300">LOADING DISCHARGE...</span>
+            </div>
+          ) : dischargeError ? (
+            <div className="w-full h-full flex items-center justify-center text-center text-[11px] text-white/50 px-6">
+              Discharge unavailable: {dischargeError}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -358,7 +385,7 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
                     color: '#fff',
                     boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
                   }}
-                  formatter={(value: any) => [`${Number(value).toLocaleString()} m³/s`, 'River Discharge']}
+                  formatter={(value: unknown) => [`${fmtNum(value, 0)} m³/s`, 'River Discharge']}
                 />
                 <Area
                   type="monotone"
@@ -383,7 +410,7 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
             <span>Daily Rainfall Spikes & Temperature Profile</span>
           </span>
           <span className="text-[10px] font-mono text-white/40">
-            Window: {dateRange.start} → {dateRange.end}
+            Window: {queryWindow ? `${queryWindow.start} → ${queryWindow.end}` : '—'}
           </span>
         </div>
 
@@ -391,7 +418,11 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
           {loading && dataPoints.length === 0 ? (
             <div className="w-full h-full flex flex-col items-center justify-center space-y-2 text-slate-400">
               <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="text-xs font-mono text-cyan-300">STREAMING NASA POWER DAILY GRID...</span>
+              <span className="text-xs font-mono text-cyan-300">LOADING NASA POWER DAILY DATA...</span>
+            </div>
+          ) : powerError ? (
+            <div className="w-full h-full flex items-center justify-center text-center text-[11px] text-white/50 px-6">
+              NASA POWER data unavailable: {powerError}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -429,9 +460,9 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
                     color: '#fff',
                     boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
                   }}
-                  formatter={(value: any, name: any) => [
-                    name.includes('Rainfall') ? `${value} mm/day` : `${value} °C`,
-                    name,
+                  formatter={(value: unknown, name: unknown) => [
+                    String(name).includes('Precipitation') ? `${fmtNum(value, 1)} mm/day` : `${fmtNum(value, 1)} °C`,
+                    String(name),
                   ]}
                 />
                 <Legend
@@ -491,122 +522,4 @@ export function ClimateTab({ regionId, regionName, climate }: ClimateTabProps) {
       </div>
     </div>
   );
-}
-
-/**
- * Calibrated fallback based on actual historical IMD / NASA POWER telemetry for the flood events
- */
-function generateCalibratedFallback(isNag: boolean): DailyClimatePoint[] {
-  const points: DailyClimatePoint[] = [];
-
-  if (isNag) {
-    // Nagapattinam Northeast Monsoon (October 18 - November 28, 2024)
-    // 42 days with intense convective rain bursts peaking around Nov 15-20
-    const startDate = new Date(2024, 9, 18);
-    for (let i = 0; i < 42; i++) {
-      const cur = new Date(startDate.getTime() + i * 86400000);
-      const displayDate = cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const year = cur.getFullYear();
-      const month = String(cur.getMonth() + 1).padStart(2, '0');
-      const day = String(cur.getDate()).padStart(2, '0');
-
-      let rain = Math.sin(i * 0.3) * 15 + 10;
-      if (i >= 22 && i <= 28) rain += 75 + Math.sin(i) * 35; // Storm surge peak
-      rain = Math.max(0, Math.round(rain * 10) / 10);
-
-      const temp = Math.round((28.5 - (rain > 40 ? 3.2 : 0) + Math.cos(i * 0.2) * 1.5) * 10) / 10;
-
-      points.push({
-        date: `${year}${month}${day}`,
-        displayDate,
-        rainfall: rain,
-        temp,
-      });
-    }
-  } else {
-    // Majuli Island Brahmaputra Monsoon (June 1 - July 15, 2024)
-    // 45 days of intense Himalayan orographic runoff peaking in late June
-    const startDate = new Date(2024, 5, 1);
-    for (let i = 0; i < 45; i++) {
-      const cur = new Date(startDate.getTime() + i * 86400000);
-      const displayDate = cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const year = cur.getFullYear();
-      const month = String(cur.getMonth() + 1).padStart(2, '0');
-      const day = String(cur.getDate()).padStart(2, '0');
-
-      let rain = Math.sin(i * 0.25) * 20 + 25;
-      if (i >= 18 && i <= 26) rain += 90 + Math.sin(i * 0.5) * 45; // Extreme Brahmaputra peak
-      rain = Math.max(0, Math.round(rain * 10) / 10);
-
-      const temp = Math.round((26.5 - (rain > 50 ? 2.5 : 0) + Math.sin(i * 0.15) * 2.0) * 10) / 10;
-
-      points.push({
-        date: `${year}${month}${day}`,
-        displayDate,
-        rainfall: rain,
-        temp,
-      });
-    }
-  }
-
-  return points;
-}
-
-/**
- * Calibrated GloFAS river discharge hydrograph
- */
-function generateGlofasDischarge(isNag: boolean): { points: DailyDischargePoint[]; peak: { value: number; date: string } } {
-  const points: DailyDischargePoint[] = [];
-  let maxQ = 0;
-  let maxQDate = '';
-
-  if (isNag) {
-    // Cauvery Distributary (Coleroon & Vennar) surge hydrograph
-    const startDate = new Date(2024, 9, 18);
-    for (let i = 0; i < 42; i++) {
-      const cur = new Date(startDate.getTime() + i * 86400000);
-      const displayDate = cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const year = cur.getFullYear();
-      const month = String(cur.getMonth() + 1).padStart(2, '0');
-      const day = String(cur.getDate()).padStart(2, '0');
-
-      // Baseflow 350 m3/s, rising to 3,840 m3/s during depression crest
-      let q = 350 + Math.sin(i * 0.15) * 120;
-      if (i >= 22 && i <= 30) {
-        const peakFactor = Math.sin(((i - 22) / 8) * Math.PI);
-        q += 3400 * peakFactor;
-      }
-      q = Math.round(Math.max(200, q));
-      if (q > maxQ) {
-        maxQ = q;
-        maxQDate = displayDate;
-      }
-      points.push({ date: `${year}-${month}-${day}`, displayDate, discharge: q });
-    }
-  } else {
-    // Brahmaputra River discharge at Majuli Island (GloFAS Pandu/Nematighat gauge)
-    const startDate = new Date(2024, 5, 1);
-    for (let i = 0; i < 45; i++) {
-      const cur = new Date(startDate.getTime() + i * 86400000);
-      const displayDate = cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const year = cur.getFullYear();
-      const month = String(cur.getMonth() + 1).padStart(2, '0');
-      const day = String(cur.getDate()).padStart(2, '0');
-
-      // Baseflow 14,000 m3/s, soaring to 48,200 m3/s peak crest in late June
-      let q = 14200 + i * 450;
-      if (i >= 18 && i <= 28) {
-        const peakFactor = Math.sin(((i - 18) / 10) * Math.PI);
-        q += 26500 * peakFactor;
-      }
-      q = Math.round(Math.max(12000, q));
-      if (q > maxQ) {
-        maxQ = q;
-        maxQDate = displayDate;
-      }
-      points.push({ date: `${year}-${month}-${day}`, displayDate, discharge: q });
-    }
-  }
-
-  return { points, peak: { value: maxQ, date: maxQDate } };
 }

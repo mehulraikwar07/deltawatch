@@ -7,16 +7,13 @@ import {
   Wind,
   Thermometer,
   Droplets,
-  AlertTriangle,
-  ShieldCheck,
-  Activity,
   Gauge,
-  Sun,
   BarChart3,
 } from 'lucide-react';
 import type { ClimateData } from '@/types/google-maps';
 import type { RegionId } from '@/types/sar';
 import { ClimateTab } from './ClimateTab';
+import { fmtNum, fmtText, fmtUnit } from '@/lib/metrics';
 
 interface GoogleMapsClimateModalProps {
   isOpen: boolean;
@@ -24,6 +21,10 @@ interface GoogleMapsClimateModalProps {
   climate: ClimateData;
   regionName: string;
   regionId: RegionId;
+  /** Scene-pair dates and centre, used to set the climate time window. */
+  beforeDate?: string | null;
+  afterDate?: string | null;
+  center?: [number, number] | null;
 }
 
 export function GoogleMapsClimateModal({
@@ -32,6 +33,9 @@ export function GoogleMapsClimateModal({
   climate,
   regionName,
   regionId,
+  beforeDate,
+  afterDate,
+  center,
 }: GoogleMapsClimateModalProps) {
   const [activeTab, setActiveTab] = useState<'power' | 'aqi'>('power');
 
@@ -93,7 +97,14 @@ export function GoogleMapsClimateModal({
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-4">
           {activeTab === 'power' ? (
-            <ClimateTab regionId={regionId} regionName={regionName} climate={climate} />
+            <ClimateTab
+              regionId={regionId}
+              regionName={regionName}
+              climate={climate}
+              beforeDate={beforeDate}
+              afterDate={afterDate}
+              center={center}
+            />
           ) : (
             <div className="space-y-4">
               {/* Highlight Grid */}
@@ -105,14 +116,14 @@ export function GoogleMapsClimateModal({
                       <Thermometer className="w-4 h-4 text-amber-400" />
                       Temperature
                     </span>
-                    <span className="text-[10px] text-amber-400/80 font-mono">LIVE</span>
+                    <span className="text-[10px] text-white/40 font-mono">NO FEED</span>
                   </div>
                   <div className="text-3xl font-extrabold text-white tracking-tight font-mono">
-                    {climate.tempC}°C
+                    {fmtUnit(climate.tempC, '°C')}
                   </div>
                   <div className="text-xs text-white/50 mt-1 flex items-center justify-between">
-                    <span>Feels like {climate.feelsLikeC}°C</span>
-                    <span className="text-cyan-300 font-medium">{climate.condition}</span>
+                    <span>Feels like {fmtUnit(climate.feelsLikeC, '°C')}</span>
+                    <span className="text-cyan-300 font-medium">{fmtText(climate.condition)}</span>
                   </div>
                 </div>
 
@@ -126,13 +137,15 @@ export function GoogleMapsClimateModal({
                     <span className="text-[10px] text-emerald-400 font-mono">NAQI</span>
                   </div>
                   <div className="text-3xl font-extrabold text-emerald-400 tracking-tight flex items-baseline gap-2 font-mono">
-                    <span>{climate.aqi}</span>
-                    <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">
-                      {climate.aqi <= 50 ? 'Good' : climate.aqi <= 100 ? 'Moderate' : 'Poor'}
-                    </span>
+                    <span>{fmtNum(climate.aqi)}</span>
+                    {climate.aqi !== null && (
+                      <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">
+                        {climate.aqi <= 50 ? 'Good' : climate.aqi <= 100 ? 'Moderate' : 'Poor'}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-white/50 mt-1 truncate">
-                    {climate.aqiStatus}
+                    {fmtText(climate.aqiStatus)}
                   </div>
                 </div>
               </div>
@@ -149,7 +162,7 @@ export function GoogleMapsClimateModal({
                       <span>Rainfall 24h</span>
                     </div>
                     <div className="text-sm font-bold text-blue-300 font-mono">
-                      {climate.precipitationMm} mm
+                      {fmtUnit(climate.precipitationMm, 'mm')}
                     </div>
                   </div>
                   <div className="p-2.5 rounded-xl bg-black/30 border border-white/5">
@@ -158,7 +171,7 @@ export function GoogleMapsClimateModal({
                       <span>Humidity</span>
                     </div>
                     <div className="text-sm font-bold text-sky-300 font-mono">
-                      {climate.humidity}%
+                      {fmtUnit(climate.humidity, '%')}
                     </div>
                   </div>
                   <div className="p-2.5 rounded-xl bg-black/30 border border-white/5">
@@ -167,31 +180,16 @@ export function GoogleMapsClimateModal({
                       <span>Wind Speed</span>
                     </div>
                     <div className="text-sm font-bold text-teal-300 font-mono">
-                      {climate.windKmh} km/h
+                      {fmtUnit(climate.windKmh, 'km/h')}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Flood Risk Warning */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/40 via-amber-950/30 to-black/40 border border-amber-500/30 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                      Delta Inundation Alert Stage
-                    </h4>
-                    <p className="text-[11px] text-white/60">
-                      Runoff combined with tidal backwater barrier
-                    </p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-red-500/30 text-red-300 border border-red-400/50">
-                  {climate.floodRisk}
-                </span>
-              </div>
+              <p className="text-[11px] text-white/50 leading-relaxed">
+                {climate.lastUpdated}. Values show &ldquo;—&rdquo; until a real weather / air-quality source is wired in.
+                Historical rainfall for the scene-pair window is on the NASA POWER tab.
+              </p>
             </div>
           )}
         </div>

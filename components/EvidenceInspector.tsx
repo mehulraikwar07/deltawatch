@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { SummaryMetrics, EvidencePolygonProperties } from '@/types/sar';
 import { AiReportTab } from './AiReportTab';
+import { DASH, fmtDb, fmtLatLng, fmtNum, fmtPct, fmtPct01, normalizePolygonProps } from '@/lib/metrics';
 
 interface EvidenceInspectorProps {
   metrics: SummaryMetrics;
@@ -41,7 +42,9 @@ export function EvidenceInspector({
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted || !data.features) return;
-        const polys = data.features.map((f: any) => f.properties as EvidencePolygonProperties);
+        const polys = data.features.map((f: { properties?: Record<string, unknown> }) =>
+          normalizePolygonProps(f.properties ?? {})
+        );
         setEvidencePolys(polys);
       })
       .catch((err) => console.warn('[EvidenceInspector] polygons fetch failed:', err));
@@ -57,33 +60,30 @@ export function EvidenceInspector({
         Number(curr.area_km2) > Number(prev.area_km2) ? curr : prev
       );
       if (onSelectPolygon) onSelectPolygon(largest);
-      if (onFocusPolygon) onFocusPolygon(largest.centroid);
+      if (onFocusPolygon && largest.centroid) onFocusPolygon(largest.centroid);
     }
   };
 
-  const c1 = metrics.classes['1'] || { area_km2: 0, percentage: 0 };
-  const c2 = metrics.classes['2'] || { area_km2: 0, percentage: 0 };
-  const c3 = metrics.classes['3'] || { area_km2: 0, percentage: 0 };
-  const c4 = metrics.classes['4'] || { area_km2: 0, percentage: 0 };
+  const c1 = metrics.classes['1'] ?? { area_km2: null, percentage: null };
+  const c2 = metrics.classes['2'] ?? { area_km2: null, percentage: null };
+  const c3 = metrics.classes['3'] ?? { area_km2: null, percentage: null };
+  const c4 = metrics.classes['4'] ?? { area_km2: null, percentage: null };
 
-  // Fallback demo target if no polygon is selected yet
+  // No invented demo target: show an empty placeholder until the user selects a polygon.
   const activePoly: EvidencePolygonProperties = selectedPolygon || {
-    id: metrics.region_id === 'nagapattinam' ? 'NAG-POLY-001' : 'MAJ-POLY-001',
-    class_id: 1,
-    class_name: 'New Open Floodwater',
-    area_km2: 0.85,
-    area_hectares: 85.0,
-    before_hh_db: -10.5,
-    after_hh_db: -16.2,
-    delta_hh_db: -5.7,
-    confidence: 0.96,
-    centroid: metrics.center,
-    driver_hypothesis:
-      metrics.region_id === 'nagapattinam'
-        ? 'Severe monsoon runoff & distributary levee overtopping causing specular radar extinction over low-gradient alluvial soil.'
-        : 'High-monsoon Brahmaputra crest breaching northern sand embankments into floodplain wetlands.',
-    radar_band: 'L-band GCOV (24 cm)',
-    geometry_lock: true,
+    id: DASH,
+    class_id: -1,
+    class_name: 'No polygon selected',
+    area_km2: null,
+    area_hectares: null,
+    before_hh_db: null,
+    after_hh_db: null,
+    delta_hh_db: null,
+    confidence: null,
+    centroid: null,
+    driver_hypothesis: null,
+    radar_band: null,
+    geometry_lock: null,
   };
 
   const getClassBadgeStyle = (classId: number) => {
@@ -159,10 +159,10 @@ export function EvidenceInspector({
                       <Droplets className="w-3 h-3 text-cyan-400" />
                       Open Flood
                     </span>
-                    <span className="text-[10px] font-mono tabular-nums font-bold text-cyan-400">{c1.percentage}%</span>
+                    <span className="text-[10px] font-mono tabular-nums font-bold text-cyan-400">{fmtPct(c1.percentage)}</span>
                   </div>
                   <div className="text-xl font-black font-mono tabular-nums text-white">
-                    {c1.area_km2} <span className="text-xs font-normal text-white/40">km²</span>
+                    {fmtNum(c1.area_km2, 2)} <span className="text-xs font-normal text-white/40">km²</span>
                   </div>
                   <div className="text-[9px] text-cyan-300/80 flex items-center gap-1 mt-1 font-mono tabular-nums">
                     <ArrowDownRight className="w-3 h-3 text-cyan-400" />
@@ -181,10 +181,10 @@ export function EvidenceInspector({
                       <Trees className="w-3 h-3 text-pink-400" />
                       Flooded Canopy
                     </span>
-                    <span className="text-[10px] font-mono tabular-nums font-bold text-pink-400">{c2.percentage}%</span>
+                    <span className="text-[10px] font-mono tabular-nums font-bold text-pink-400">{fmtPct(c2.percentage)}</span>
                   </div>
                   <div className="text-xl font-black font-mono tabular-nums text-white">
-                    {c2.area_km2} <span className="text-xs font-normal text-white/40">km²</span>
+                    {fmtNum(c2.area_km2, 2)} <span className="text-xs font-normal text-white/40">km²</span>
                   </div>
                   <div className="text-[9px] text-pink-300/80 flex items-center gap-1 mt-1 font-mono tabular-nums">
                     <ArrowUpRight className="w-3 h-3 text-pink-400" />
@@ -203,10 +203,10 @@ export function EvidenceInspector({
                       <Wheat className="w-3 h-3 text-emerald-400" />
                       Managed Paddy
                     </span>
-                    <span className="text-[10px] font-mono tabular-nums font-bold text-emerald-400">{c3.percentage}%</span>
+                    <span className="text-[10px] font-mono tabular-nums font-bold text-emerald-400">{fmtPct(c3.percentage)}</span>
                   </div>
                   <div className="text-xl font-black font-mono tabular-nums text-white">
-                    {c3.area_km2} <span className="text-xs font-normal text-white/40">km²</span>
+                    {fmtNum(c3.area_km2, 2)} <span className="text-xs font-normal text-white/40">km²</span>
                   </div>
                   <div className="text-[9px] text-emerald-300/80 mt-1 font-mono">Agricultural bunds &bull; Zoom</div>
                 </div>
@@ -222,10 +222,10 @@ export function EvidenceInspector({
                       <Sun className="w-3 h-3 text-amber-400" />
                       Wetland Drying
                     </span>
-                    <span className="text-[10px] font-mono tabular-nums font-bold text-amber-400">{c4.percentage}%</span>
+                    <span className="text-[10px] font-mono tabular-nums font-bold text-amber-400">{fmtPct(c4.percentage)}</span>
                   </div>
                   <div className="text-xl font-black font-mono tabular-nums text-white">
-                    {c4.area_km2} <span className="text-xs font-normal text-white/40">km²</span>
+                    {fmtNum(c4.area_km2, 2)} <span className="text-xs font-normal text-white/40">km²</span>
                   </div>
                   <div className="text-[9px] text-amber-300/80 mt-1 font-mono">Sandbars &amp; char lands &bull; Zoom</div>
                 </div>
@@ -242,7 +242,7 @@ export function EvidenceInspector({
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-white/50">
-                  {selectedPolygon ? 'Target Locked' : 'Featured Verified'}
+                  {selectedPolygon ? 'Selected' : 'Select a polygon'}
                 </span>
               </div>
 
@@ -262,14 +262,14 @@ export function EvidenceInspector({
                   <div className="flex items-center gap-1 text-[10px] text-white/50 font-mono tabular-nums">
                     <MapPin className="w-3 h-3 text-cyan-400" />
                     <span>
-                      {activePoly.centroid[1].toFixed(4)}°N, {activePoly.centroid[0].toFixed(4)}°E
+                      {fmtLatLng(activePoly.centroid)}
                     </span>
                   </div>
                 </div>
 
-                {onFocusPolygon && (
+                {onFocusPolygon && activePoly.centroid && (
                   <button
-                    onClick={() => onFocusPolygon(activePoly.centroid)}
+                    onClick={() => activePoly.centroid && onFocusPolygon(activePoly.centroid)}
                     className="p-2 rounded-xl bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-300 text-white/70 transition-all border border-white/10 cursor-pointer"
                     title="Focus map on polygon"
                   >
@@ -283,17 +283,16 @@ export function EvidenceInspector({
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
                   <div className="text-[9px] uppercase font-semibold text-white/50">Surface Extent</div>
                   <div className="text-sm font-bold font-mono tabular-nums text-white">
-                    {activePoly.area_km2} <span className="text-[10px] font-normal text-white/40">km²</span>
+                    {fmtNum(activePoly.area_km2, 3)} <span className="text-[10px] font-normal text-white/40">km²</span>
                   </div>
-                  <div className="text-[9px] text-white/40 font-mono tabular-nums">({activePoly.area_hectares} ha)</div>
+                  <div className="text-[9px] text-white/40 font-mono tabular-nums">({fmtNum(activePoly.area_hectares, 1)} ha)</div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
-                  <div className="text-[9px] uppercase font-semibold text-white/50">Radar Quality / Looks</div>
+                  <div className="text-[9px] uppercase font-semibold text-white/50">Robustness Score</div>
                   <div className="text-sm font-bold font-mono tabular-nums text-emerald-300">
-                    {(activePoly.confidence * 100).toFixed(1)}%
+                    {fmtPct01(activePoly.confidence, 1)}
                   </div>
-                  <div className="text-[9px] text-white/40 font-mono">ENL = 4.15 (5x5 Lee)</div>
                 </div>
               </div>
 
@@ -306,22 +305,22 @@ export function EvidenceInspector({
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="p-2 rounded-lg bg-white/5 border border-white/10">
                     <div className="text-[8px] uppercase text-white/40">Before HH</div>
-                    <div className="text-[11px] font-mono tabular-nums font-bold text-white/90">{activePoly.before_hh_db} dB</div>
+                    <div className="text-[11px] font-mono tabular-nums font-bold text-white/90">{fmtDb(activePoly.before_hh_db)}</div>
                   </div>
                   <div className="p-2 rounded-lg bg-white/5 border border-white/10">
                     <div className="text-[8px] uppercase text-white/40">After HH</div>
-                    <div className="text-[11px] font-mono tabular-nums font-bold text-white/90">{activePoly.after_hh_db} dB</div>
+                    <div className="text-[11px] font-mono tabular-nums font-bold text-white/90">{fmtDb(activePoly.after_hh_db)}</div>
                   </div>
                   <div
                     className={`p-2 rounded-lg border ${
-                      activePoly.delta_hh_db < 0
+                      (activePoly.delta_hh_db ?? 0) < 0
                         ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300'
                         : 'bg-pink-500/20 border-pink-400/40 text-pink-300'
                     }`}
                   >
                     <div className="text-[8px] uppercase font-semibold">ΔHH Shift</div>
                     <div className="text-[11px] font-mono tabular-nums font-bold">
-                      {activePoly.delta_hh_db > 0 ? `+${activePoly.delta_hh_db}` : activePoly.delta_hh_db} dB
+                      {fmtDb(activePoly.delta_hh_db)}
                     </div>
                   </div>
                 </div>
@@ -330,13 +329,13 @@ export function EvidenceInspector({
               {/* Physical vs Human Driver Hypothesis */}
               <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5">
                 <div className="text-[9px] font-bold uppercase tracking-wider text-amber-300">
-                  Physical vs. Human Driver Hypothesis
+                  Pipeline Note (unverified)
                 </div>
-                <p className="text-[11px] text-white/80 leading-relaxed font-sans">{activePoly.driver_hypothesis}</p>
+                <p className="text-[11px] text-white/80 leading-relaxed font-sans">{activePoly.driver_hypothesis ?? DASH}</p>
                 <div className="pt-2 flex items-center gap-1.5 text-[9px] text-white/40 border-t border-white/10">
                   <Compass className="w-3 h-3 text-cyan-400" />
                   <span>
-                    Verified via DELTA-SAR v2.0 physics rules ({activePoly.radar_band}).
+                    Rule-based change class; not validated against ground truth.
                   </span>
                 </div>
               </div>

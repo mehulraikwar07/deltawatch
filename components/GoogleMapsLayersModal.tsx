@@ -18,7 +18,6 @@ import {
   EyeOff,
   Radio,
 } from 'lucide-react';
-import { ISRO_DEM_LULC_METADATA_2024_25 } from '@/lib/demMetadata';
 
 export type BasemapType = 'satellite' | 'dark' | 'terrain';
 
@@ -31,6 +30,7 @@ export interface ActiveLayerDetails {
   showMangroveFilter: boolean;
   sarIntensityMode: boolean;
   floodMaskOpacity: number;
+  radarOpacity: number;
 }
 
 interface GoogleMapsLayersModalProps {
@@ -41,6 +41,7 @@ interface GoogleMapsLayersModalProps {
   layers: ActiveLayerDetails;
   onToggleLayer: (layerKey: keyof ActiveLayerDetails) => void;
   onChangeOpacity: (opacity: number) => void;
+  onChangeRadarOpacity: (opacity: number) => void;
 }
 
 export function GoogleMapsLayersModal({
@@ -51,6 +52,7 @@ export function GoogleMapsLayersModal({
   layers,
   onToggleLayer,
   onChangeOpacity,
+  onChangeRadarOpacity,
 }: GoogleMapsLayersModalProps) {
   if (!isOpen) return null;
 
@@ -331,6 +333,25 @@ export function GoogleMapsLayersModal({
             </button>
           </div>
 
+          {/* Radar image opacity (0 = satellite basemap only) */}
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+            <span className="text-white/70">Radar Image Opacity</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="1.0"
+                step="0.05"
+                value={layers.radarOpacity}
+                onChange={(e) => onChangeRadarOpacity(parseFloat(e.target.value))}
+                className="w-24 accent-cyan-400 h-1 bg-white/20 rounded cursor-pointer"
+              />
+              <span className="font-mono text-cyan-300 tabular-nums w-8">
+                {Math.round(layers.radarOpacity * 100)}%
+              </span>
+            </div>
+          </div>
+
           {/* Opacity Slider for Overlay */}
           <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
             <span className="text-white/70">Flood Mask Opacity</span>
@@ -350,31 +371,6 @@ export function GoogleMapsLayersModal({
             </div>
           </div>
 
-          {/* Official ISRO NRSC DEM & LULC 2024-25 Ground-Truth Metadata Card */}
-          <div className="pt-3 border-t border-white/10 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-mono text-cyan-300">
-              <span className="flex items-center gap-1.5 font-bold">
-                <Mountain className="w-3.5 h-3.5 text-amber-400" />
-                ISRO NRSC DEM &amp; LULC 2024–25
-              </span>
-              <span className="text-[10px] text-white/50">{ISRO_DEM_LULC_METADATA_2024_25.spatialReference.scale} • WGS-84</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
-              <div className="bg-white/5 p-2 rounded-xl border border-white/5">
-                <div className="text-white/40 uppercase text-[9px]">Classification Accuracy</div>
-                <div className="font-bold text-emerald-400 mt-0.5">{ISRO_DEM_LULC_METADATA_2024_25.accuracy.overallClassificationAccuracy} (Kappa verified)</div>
-              </div>
-              <div className="bg-white/5 p-2 rounded-xl border border-white/5">
-                <div className="text-white/40 uppercase text-[9px]">Terrain Model Accuracy</div>
-                <div className="font-bold text-cyan-400 mt-0.5">1-px Plains • 2–3 px TIN</div>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-white/60 leading-relaxed font-sans">
-              Source: {ISRO_DEM_LULC_METADATA_2024_25.agency.organisation} (Bhuvan Thematic Services). Covers 68°E–98°E, 6°N–38°N with hybrid See5/MXL classifier across Tamil Nadu &amp; Assam.
-            </p>
-          </div>
         </div>
       </div>
     </div>

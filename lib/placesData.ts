@@ -1,3 +1,5 @@
+// Place names, coordinates and short descriptions are general geography.
+// No per-place flood status, temperature or AQI is included: none was measured.
 import type { SearchPlace, ClimateData } from '@/types/google-maps';
 
 export const SEARCH_PLACES: SearchPlace[] = [
@@ -9,9 +11,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'port',
     coordinates: [79.8427, 10.7656],
     description: 'Coastal district headquarters and ancient port at the mouth of Kaduvaiyar River.',
-    floodStatus: 'Severe Flood',
-    tempC: 28,
-    aqi: 38,
   },
   {
     id: 'nag-02',
@@ -19,10 +18,7 @@ export const SEARCH_PLACES: SearchPlace[] = [
     regionId: 'nagapattinam',
     type: 'wetland',
     coordinates: [79.5120, 10.3340],
-    description: 'Vast Avicennia mangrove wetland with pronounced L-band dihedral double-bounce backscatter.',
-    floodStatus: 'Flooded Canopy',
-    tempC: 27,
-    aqi: 24,
+    description: 'Large Avicennia-dominated mangrove wetland on the Palk Strait coast.',
   },
   {
     id: 'nag-03',
@@ -30,10 +26,7 @@ export const SEARCH_PLACES: SearchPlace[] = [
     regionId: 'nagapattinam',
     type: 'wetland',
     coordinates: [79.8510, 10.3725],
-    description: 'Extensive low-gradient salt marshes and shallow tidal estuaries with specular radar drop.',
-    floodStatus: 'Severe Flood',
-    tempC: 29,
-    aqi: 32,
+    description: 'Extensive low-gradient salt marshes and shallow tidal estuaries.',
   },
   {
     id: 'nag-04',
@@ -42,9 +35,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'district',
     coordinates: [79.6360, 10.7725],
     description: 'Heart of the Cauvery delta agricultural plains with bunded paddy submergence.',
-    floodStatus: 'Managed Inundation',
-    tempC: 28,
-    aqi: 45,
   },
   {
     id: 'nag-05',
@@ -53,9 +43,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'town',
     coordinates: [79.8500, 10.6800],
     description: 'Pilgrimage shoreline center located south of Nagapattinam along Bay of Bengal coast.',
-    floodStatus: 'Severe Flood',
-    tempC: 28,
-    aqi: 35,
   },
   {
     id: 'nag-06',
@@ -63,10 +50,7 @@ export const SEARCH_PLACES: SearchPlace[] = [
     regionId: 'nagapattinam',
     type: 'river',
     coordinates: [79.7333, 11.2333],
-    description: 'Northern Cauvery delta distributary experiencing heavy monsoon levee runoff.',
-    floodStatus: 'Severe Flood',
-    tempC: 27,
-    aqi: 40,
+    description: 'Northern Cauvery delta distributary (Kollidam / Coleroon) near Sirkazhi.',
   },
   {
     id: 'nag-07',
@@ -74,10 +58,7 @@ export const SEARCH_PLACES: SearchPlace[] = [
     regionId: 'nagapattinam',
     type: 'landmark',
     coordinates: [79.8660, 10.2974],
-    description: 'Ramsar wetland wetland sanctuary on the southern apex of Cauvery delta promontory.',
-    floodStatus: 'Receding',
-    tempC: 29,
-    aqi: 22,
+    description: 'Ramsar wetland sanctuary on the southern apex of Cauvery delta promontory.',
   },
   {
     id: 'nag-08',
@@ -86,9 +67,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'port',
     coordinates: [79.8380, 10.9254],
     description: 'Riverine port zone intersecting Arasalar river mouth and coastal shipping canal.',
-    floodStatus: 'Normal / Safe',
-    tempC: 28,
-    aqi: 44,
   },
   {
     id: 'nag-09',
@@ -97,9 +75,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'town',
     coordinates: [79.6524, 11.1075],
     description: 'Upstream delta irrigation distribution nexus with sluice gates on Cauvery main stem.',
-    floodStatus: 'Managed Inundation',
-    tempC: 27,
-    aqi: 52,
   },
 
   // Majuli / Brahmaputra Basin
@@ -110,9 +85,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'district',
     coordinates: [94.2100, 26.9600],
     description: 'World’s largest inhabited river island, administrative and cultural capital.',
-    floodStatus: 'Severe Flood',
-    tempC: 24,
-    aqi: 28,
   },
   {
     id: 'maj-02',
@@ -121,9 +93,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'port',
     coordinates: [94.1780, 26.9020],
     description: 'Southern river port and crucial river crossing connecting Majuli to Jorhat mainland.',
-    floodStatus: 'Severe Flood',
-    tempC: 23,
-    aqi: 30,
   },
   {
     id: 'maj-03',
@@ -132,9 +101,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'town',
     coordinates: [94.3400, 26.8850],
     description: 'Southeastern shoreline settlement famous for beat-pottery, vulnerable to active riverbank erosion.',
-    floodStatus: 'Severe Flood',
-    tempC: 24,
-    aqi: 25,
   },
   {
     id: 'maj-04',
@@ -143,9 +109,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'district',
     coordinates: [94.2037, 26.7509],
     description: 'Major regional logistics base and staging ground for Assam flood relief operations.',
-    floodStatus: 'Normal / Safe',
-    tempC: 25,
-    aqi: 46,
   },
   {
     id: 'maj-05',
@@ -154,9 +117,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'river',
     coordinates: [94.2800, 26.9950],
     description: 'Sub-Brahmaputra overflow channel separating upper island char lands.',
-    floodStatus: 'Severe Flood',
-    tempC: 23,
-    aqi: 26,
   },
   {
     id: 'maj-06',
@@ -165,9 +125,6 @@ export const SEARCH_PLACES: SearchPlace[] = [
     type: 'landmark',
     coordinates: [94.1500, 26.9400],
     description: 'Historic 17th-century Vaishnavite cultural center with raised flood-refuge embankments.',
-    floodStatus: 'Flooded Canopy',
-    tempC: 24,
-    aqi: 22,
   },
   {
     id: 'maj-07',
@@ -175,36 +132,30 @@ export const SEARCH_PLACES: SearchPlace[] = [
     regionId: 'majuli',
     type: 'wetland',
     coordinates: [94.1000, 26.9200],
-    description: 'Ephemeral shifting sandbars showing backscatter resurgence during flood recession.',
-    floodStatus: 'Receding',
-    tempC: 25,
-    aqi: 20,
+    description: 'Ephemeral shifting sandbars (chars) along the Brahmaputra channel.',
   },
 ];
 
+/**
+ * Current weather / air-quality / flood-risk values. These used to be
+ * hard-coded numbers labelled "LIVE"; no live feed is connected, so they are
+ * null and the UI shows "—". Historical rainfall comes from NASA POWER in
+ * ClimateTab instead.
+ */
+const NO_LIVE_FEED: ClimateData = {
+  tempC: null,
+  feelsLikeC: null,
+  condition: null,
+  aqi: null,
+  aqiStatus: null,
+  humidity: null,
+  precipitationMm: null,
+  windKmh: null,
+  floodRisk: null,
+  lastUpdated: 'No live weather / AQI feed connected',
+};
+
 export const REGION_CLIMATE: Record<string, ClimateData> = {
-  nagapattinam: {
-    tempC: 28,
-    feelsLikeC: 32,
-    condition: 'Tropical Monsoon Showers',
-    aqi: 42,
-    aqiStatus: 'Good (Clean Coastal Air)',
-    humidity: 86,
-    precipitationMm: 124,
-    windKmh: 24,
-    floodRisk: 'High',
-    lastUpdated: 'Live NASA/IMD Ground Station Feed',
-  },
-  majuli: {
-    tempC: 24,
-    feelsLikeC: 27,
-    condition: 'Heavy Riverine Overcast',
-    aqi: 28,
-    aqiStatus: 'Excellent (Riparian Fresh)',
-    humidity: 92,
-    precipitationMm: 168,
-    windKmh: 18,
-    floodRisk: 'Severe',
-    lastUpdated: 'Live Brahmaputra Board Sensor Feed',
-  },
+  nagapattinam: NO_LIVE_FEED,
+  majuli: NO_LIVE_FEED,
 };

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'DELTAWATCH | NASA–ISRO NISAR L2 GCOV Mission Control',
+  title: 'DELTAWATCH | NISAR L-band Flood Change Viewer',
   description:
-    "Next-Generation Polarimetric SAR Flood & Mangrove Inundation Intelligence for NASA Space Apps 2026 Challenge 'Dancing with the SARs'",
+    "Before/after NISAR L-band radar change viewer for two Indian river deltas, built for the NASA Space Apps 2026 challenge 'Dancing with the SARs'",
   icons: {
     icon: '/favicon.ico',
   },

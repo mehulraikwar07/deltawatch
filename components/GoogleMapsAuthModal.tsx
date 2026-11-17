@@ -35,7 +35,7 @@ export function GoogleMapsAuthModal({
   const [emailInput, setEmailInput] = useState(profile.email || '');
   const [passwordInput, setPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState(profile.name || '');
-  const [earthdataUsername, setEarthdataUsername] = useState('mehul_raikwar');
+  const [earthdataUsername, setEarthdataUsername] = useState('');
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -43,15 +43,15 @@ export function GoogleMapsAuthModal({
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     const updated: UserProfile = {
-      name: nameInput || 'NASA Earthdata Specialist',
-      email: emailInput || 'researcher@nasa.gov',
-      role: 'SAR Payload Hydrologist',
-      organization: 'NASA Space Apps 2026',
+      name: nameInput || 'Demo User',
+      email: emailInput || 'demo@example.com',
+      role: 'Viewer',
+      organization: 'Local demo',
       isSignedIn: true,
       isGuest: false,
     };
     onUpdateProfile(updated);
-    setStatusMsg('Successfully authenticated with NASA Earthdata.');
+    setStatusMsg('Local profile updated (no real sign-in: this demo has no authentication).');
     setTimeout(() => {
       setStatusMsg(null);
       onClose();
@@ -117,7 +117,7 @@ export function GoogleMapsAuthModal({
                 {profile.isSignedIn ? 'NASA & Google Account' : 'Sign in to DELTAWATCH'}
               </h2>
               <p className="text-[11px] text-white/50">
-                {profile.isSignedIn ? profile.email : 'Google Maps NISAR Mission Control'}
+                {profile.isSignedIn ? profile.email : 'DELTAWATCH demo'}
               </p>
             </div>
           </div>
@@ -342,12 +342,12 @@ export function GoogleMapsAuthModal({
                     <Shield className="w-3.5 h-3.5 text-emerald-400" />
                     NASA Earthdata Sync
                   </span>
-                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                    ACTIVE
+                  <span className="text-[10px] font-mono text-white/60 bg-white/5 px-2 py-0.5 rounded-full border border-white/15">
+                    NOT CONNECTED
                   </span>
                 </div>
                 <p className="text-[11px] text-white/50">
-                  User ID: <code className="text-white font-mono">{earthdataUsername}</code> (NISAR L2 GCOV Provisioning)
+                  User ID: <code className="text-white font-mono">{earthdataUsername || '—'}</code> (stored locally only; the app does not sign in to Earthdata)
                 </p>
               </div>
 

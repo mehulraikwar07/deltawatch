@@ -174,7 +174,7 @@ export function BottomDrawer({ metrics, isOpen, onToggle, activeTab = 'charts' }
                   <span className="text-xs font-bold text-slate-300">
                     Pre vs. Post L-Band HH Backscatter Shift (γ⁰ dB)
                   </span>
-                  <span className="text-[10px] text-cyan-400 font-mono">Lee 5x5 Filtered (L=4.15)</span>
+                  <span className="text-[10px] text-cyan-400 font-mono">Speckle filtered</span>
                 </div>
                 <div className="flex-1 w-full text-xs">
                   <ResponsiveContainer width="100%" height="100%">
@@ -263,7 +263,7 @@ export function BottomDrawer({ metrics, isOpen, onToggle, activeTab = 'charts' }
                 <ul className="space-y-1.5 text-[11px] text-slate-300">
                   <li className="flex items-start gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>5x5 Lee Filter:</strong> Multiplicative speckle filtering in linear power domain (ENL ≈ 4.15).</span>
+                    <span><strong>5x5 Lee Filter:</strong> Multiplicative speckle filtering in linear power domain.</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
@@ -280,17 +280,13 @@ export function BottomDrawer({ metrics, isOpen, onToggle, activeTab = 'charts' }
               <div className="p-3.5 rounded-xl bg-[#0B1120] border border-sky-500/20 space-y-2">
                 <div className="flex items-center gap-2 text-amber-300 font-bold text-xs border-b border-sky-500/20 pb-1.5">
                   <Shield className="w-4 h-4 text-amber-400" />
-                  <span>NASA–ISRO Science Collaboration</span>
+                  <span>Data Sources</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   Developed for the <strong>NASA Space Apps Challenge 2026</strong> (&ldquo;Dancing with the SARs&rdquo;).
                 </p>
                 <div className="space-y-1 text-[10px] font-mono text-slate-400 border-t border-sky-500/20 pt-1.5">
                   <div>• NASA Jet Propulsion Laboratory (JPL) — NISAR L2 GCOV</div>
-                  <div>• ISRO NRSC Balanagar — LULC &amp; DEM 2024–25 (AWiFS, 1:250,000)</div>
-                  <div>• Spheroid / Datum: GCS WGS-1984 (68°E–98°E, 6°N–38°N)</div>
-                  <div>• Terrain Modeling: 1-px Plain Polynomial / 2–3 px Hilly TIN</div>
-                  <div>• Ground-Truth Accuracy: 90.07% (Kappa Co-efficients Verified)</div>
                 </div>
               </div>
             </div>

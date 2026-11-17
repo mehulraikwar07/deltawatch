@@ -3,10 +3,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Compass,
-  Activity,
-  Sparkles,
-  CloudRain,
   Bell,
   BookOpen,
   Download,
@@ -14,21 +10,25 @@ import {
   ShieldCheck,
   MapPin,
   Satellite,
-  Droplets,
-  Trees,
-  Wheat,
-  Sun,
-  AlertTriangle,
-  Radio,
-  ExternalLink,
-  Layers,
-  ArrowRight,
-  TrendingDown,
-  TrendingUp,
-  Users,
-  Mountain,
 } from 'lucide-react';
-import { ISRO_DEM_LULC_METADATA_2024_25 } from '@/lib/demMetadata';
+import {
+  DASH,
+  dataModeLabel,
+  fmtDate,
+  fmtDb,
+  fmtLatLng,
+  fmtNum,
+  fmtOrbit,
+  fmtPct,
+  fmtPct01,
+  fmtRange,
+  fmtText,
+  getClass,
+  isNum,
+  isRealData,
+  normalizePolygonProps,
+  provenanceRows,
+} from '@/lib/metrics';
 import {
   BarChart,
   Bar,
@@ -40,8 +40,8 @@ import {
 } from 'recharts';
 import { AiReportTab } from './AiReportTab';
 import { ClimateTab } from './ClimateTab';
-import type { SummaryMetrics, EvidencePolygonProperties, RegionId } from '@/types/sar';
-import type { ClimateData, SearchPlace } from '@/types/google-maps';
+import type { SummaryMetrics, EvidencePolygonProperties, RegionSceneEntry } from '@/types/sar';
+import type { ClimateData } from '@/types/google-maps';
 
 export type NasaModuleId =
   | 'overview'
@@ -63,6 +63,8 @@ interface NasaModulesSheetProps {
   onFocusPolygon: (coords: [number, number]) => void;
   evidencePolys: EvidencePolygonProperties[];
   onFlyToRegion: (coords: [number, number]) => void;
+  /** This region's entry from available_scenes.json (optional). */
+  regionCatalog?: RegionSceneEntry | null;
 }
 
 export function NasaModulesSheet({
@@ -76,71 +78,62 @@ export function NasaModulesSheet({
   onSelectPolygon,
   onFocusPolygon,
   evidencePolys,
-  onFlyToRegion,
+  regionCatalog,
 }: NasaModulesSheetProps) {
-  const [followedAlerts, setFollowedAlerts] = useState<Record<string, boolean>>({
-    'alert-1': true,
-    'alert-2': true,
-  });
+  const [showAllProvenance, setShowAllProvenance] = useState(false);
 
   if (!isOpen) return null;
 
-  const isNag = metrics.region_id === 'nagapattinam';
+  // Only a polygon the user actually selected is inspected; no invented demo target.
+  const activePoly: EvidencePolygonProperties | null = selectedPolygon;
 
-  // Fallback demo target
-  const activePoly: EvidencePolygonProperties = selectedPolygon || {
-    id: isNag ? 'NAG-POLY-001' : 'MAJ-POLY-001',
-    class_id: 1,
-    class_name: 'New Open Floodwater',
-    area_km2: 0.85,
-    area_hectares: 85.0,
-    before_hh_db: -10.5,
-    after_hh_db: -16.2,
-    delta_hh_db: -5.7,
-    confidence: 0.96,
-    centroid: metrics.center,
-    driver_hypothesis:
-      isNag
-        ? 'Severe monsoon runoff & distributary levee overtopping causing specular radar extinction over low-gradient alluvial soil.'
-        : 'High-monsoon Brahmaputra crest breaching northern sand embankments into floodplain wetlands.',
-    radar_band: 'L-band GCOV (24 cm)',
-    geometry_lock: true,
-  };
-
-  const c1 = metrics.classes['1'] || { area_km2: 0, percentage: 0 };
-  const c2 = metrics.classes['2'] || { area_km2: 0, percentage: 0 };
-  const c3 = metrics.classes['3'] || { area_km2: 0, percentage: 0 };
-  const c4 = metrics.classes['4'] || { area_km2: 0, percentage: 0 };
-
-  // Demographic and vulnerability exposure profile
-  const demographicData = isNag
-    ? {
-        populationExposed: '1.6 Million',
-        populationSubtext: 'Coastal & Delta Alluvial Zones',
-        infrastructureRisk: 'Coastal power grid & Samba paddy salinization',
-        primaryCause: 'Cyclonic storm surge & Cauvery distributary backup',
-        riskLevel: 'CRITICAL HIGH',
-        riskColor: 'text-red-400',
-        riskBg: 'bg-red-950/40 border-red-500/30',
-      }
-    : {
-        populationExposed: '167,000',
-        populationSubtext: 'River Island & Char Settlements',
-        infrastructureRisk: '42 km of state highways submerged',
-        primaryCause: 'Upstream Brahmaputra flash flooding & levee overtopping',
-        riskLevel: 'SEVERE ALERT',
-        riskColor: 'text-amber-400',
-        riskBg: 'bg-amber-950/40 border-amber-500/30',
-      };
-
-  // 04. Analytics: Backscatter shift data
-  const backscatterChartData = [
-    { name: 'Stable Land', preHH: -11.5, postHH: -11.5, delta: 0.0, color: '#64748B' },
-    { name: 'Open Flood', preHH: -10.8, postHH: -17.5, delta: -6.7, color: '#00F0FF' },
-    { name: 'Flooded Canopy', preHH: -8.2, postHH: -4.5, delta: +3.7, color: '#FF2E93' },
-    { name: 'Managed Paddy', preHH: -11.2, postHH: -15.4, delta: -4.2, color: '#10B981' },
-    { name: 'Wetland Drying', preHH: -16.8, postHH: -12.1, delta: +4.7, color: '#FFB800' },
+  const CLASS_META: Array<{ id: number; fallbackName: string }> = [
+    { id: 1, fallbackName: 'Open Floodwater' },
+    { id: 2, fallbackName: 'Flooded Vegetation' },
+    { id: 3, fallbackName: 'Managed Paddy / Aquaculture' },
+    { id: 4, fallbackName: 'Wetland Drying' },
   ];
+  const c1 = getClass(metrics, 1);
+  const c2 = getClass(metrics, 2);
+  const c3 = getClass(metrics, 3);
+  const c4 = getClass(metrics, 4);
+  const className = (id: number) =>
+    getClass(metrics, id)?.name || CLASS_META.find((c) => c.id === id)?.fallbackName || `Class ${id}`;
+
+  // Mean HH backscatter change per class, computed from the evidence polygons
+  // actually loaded for this region (replaces the old hard-coded chart values).
+  const CLASS_COLORS: Record<number, string> = { 1: '#00F0FF', 2: '#FF2E93', 3: '#10B981', 4: '#FFB800' };
+  const backscatterChartData = CLASS_META.map(({ id }) => {
+    const deltas = evidencePolys
+      .filter((p) => p.class_id === id)
+      .map((p) => p.delta_hh_db)
+      .filter(isNum);
+    const mean = deltas.length ? deltas.reduce((x, y) => x + y, 0) / deltas.length : null;
+    return {
+      name: className(id).split(/[ /]/)[0],
+      delta: mean === null ? null : Math.round(mean * 100) / 100,
+      n: deltas.length,
+      color: getClass(metrics, id)?.hex || CLASS_COLORS[id],
+    };
+  }).filter((d) => d.delta !== null);
+
+  // Largest polygons, used by the "Change highlights" module.
+  const topPolys = [...evidencePolys]
+    .filter((p) => isNum(p.area_km2) && p.class_id >= 1 && p.class_id <= 4)
+    .sort((x, y) => (y.area_km2 ?? 0) - (x.area_km2 ?? 0))
+    .slice(0, 5);
+
+  const validation = metrics.validation_stats ?? {};
+  const validationRows = [
+    { label: 'Speckle filter window', value: validation.lee_filter_window ?? null },
+    { label: 'Equivalent no. of looks', value: isNum(validation.equivalent_number_of_looks) ? fmtNum(validation.equivalent_number_of_looks, 2) : null },
+    { label: 'Speckle suppression idx', value: isNum(validation.speckle_suppression_index) ? fmtNum(validation.speckle_suppression_index, 2) : null },
+    { label: 'Co-registration RMSE', value: isNum(validation.coregistration_rmse_m) ? `${fmtNum(validation.coregistration_rmse_m, 2)} m` : null },
+    { label: 'Radiometric resolution', value: isNum(validation.radiometric_resolution_db) ? `${fmtNum(validation.radiometric_resolution_db, 2)} dB` : null },
+  ].filter((r) => r.value !== null && r.value !== '');
+
+  const provRows = provenanceRows(metrics.provenance);
+  const realData = isRealData(metrics);
 
   // 06. Reports: Export GeoJSON
   const handleExportGeoJson = () => {
@@ -162,22 +155,22 @@ export function NasaModulesSheet({
     fetch(`/processed/${metrics.region_id}/evidence_polygons.geojson`)
       .then((res) => res.json())
       .then((data) => {
-        const rows = [
+        const rows: Array<Array<string | number>> = [
           ['Feature_ID', 'Class_Name', 'Area_km2', 'Area_Hectares', 'Before_HH_dB', 'After_HH_dB', 'Delta_HH_dB', 'Confidence', 'Longitude', 'Latitude'],
         ];
-        (data.features || []).forEach((f: any) => {
-          const p = f.properties;
+        (data.features || []).forEach((f: { properties?: Record<string, unknown> }) => {
+          const p = normalizePolygonProps(f.properties ?? {});
           rows.push([
             p.id,
             `"${p.class_name}"`,
-            p.area_km2,
-            p.area_hectares,
-            p.before_hh_db,
-            p.after_hh_db,
-            p.delta_hh_db,
-            p.confidence,
-            p.centroid?.[0] || '',
-            p.centroid?.[1] || '',
+            p.area_km2 ?? '',
+            p.area_hectares ?? '',
+            p.before_hh_db ?? '',
+            p.after_hh_db ?? '',
+            p.delta_hh_db ?? '',
+            p.confidence ?? '',
+            p.centroid?.[0] ?? '',
+            p.centroid?.[1] ?? '',
           ]);
         });
         const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.join(',')).join('\n');
@@ -199,7 +192,7 @@ export function NasaModulesSheet({
         Number(curr.area_km2) > Number(prev.area_km2) ? curr : prev
       );
       onSelectPolygon(largest);
-      onFocusPolygon(largest.centroid);
+      if (largest.centroid) onFocusPolygon(largest.centroid);
     }
   };
 
@@ -217,8 +210,15 @@ export function NasaModulesSheet({
               {activeModule === 'alerts' && '07. Monitoring & Inundation Alerts'}
               {activeModule === 'learn' && '08. Learn About L-Band SAR'}
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-400/30">
-              NASA 2026
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                realData
+                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-400/30'
+                  : 'bg-amber-950/60 text-amber-300 border-amber-400/40'
+              }`}
+              title={dataModeLabel(metrics)}
+            >
+              {realData ? 'REAL DATA' : 'SYNTHETIC DATA'}
             </span>
           </div>
 
@@ -306,152 +306,140 @@ export function NasaModulesSheet({
                 <div className="flex items-center justify-between text-xs font-mono text-cyan-300">
                   <span className="flex items-center gap-1.5 font-bold">
                     <Satellite className="w-4 h-4" />
-                    NISAR L2 GCOV (PROVISIONAL)
+                    {dataModeLabel(metrics)}
                   </span>
-                  <span>1.25 GHz / 24 cm λ</span>
+                  <span>{fmtText(metrics.radar_band)}</span>
                 </div>
                 <h3 className="text-base font-bold text-white tracking-tight">
                   {metrics.region_name}
                 </h3>
                 <p className="text-xs text-white/70 leading-relaxed">
-                  Dual-polarimetric (HH+HV) flood displacement and sub-canopy inundation mapping for the NASA Space Apps Challenge 2026 (&ldquo;Dancing with the SARs&rdquo;).
+                  {fmtText(metrics.flood_event)}
                 </p>
+                {!realData && (
+                  <p className="text-[11px] text-amber-300/90 leading-relaxed">
+                    These figures come from synthetic demo data, not real radar observations.
+                  </p>
+                )}
               </div>
 
-              {/* Mission Metadata Grid */}
+              {/* Scene Metadata Grid (all from summary_metrics.json) */}
               <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                  <div className="text-[10px] text-white/40 uppercase">Total Swath Area</div>
-                  <div className="text-base font-bold text-cyan-400 mt-0.5">{metrics.total_swath_area_km2} km²</div>
+                  <div className="text-[10px] text-white/40 uppercase">Scene Area Analysed</div>
+                  <div className="text-base font-bold text-cyan-400 mt-0.5">
+                    {isNum(metrics.total_swath_area_km2) ? `${fmtNum(metrics.total_swath_area_km2, 2)} km²` : DASH}
+                  </div>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                  <div className="text-[10px] text-white/40 uppercase">Orbit Geometry Lock</div>
-                  <div className="text-base font-bold text-emerald-400 mt-0.5">Track {metrics.orbit_track} • Frame {metrics.frame_number}</div>
+                  <div className="text-[10px] text-white/40 uppercase">Orbit</div>
+                  <div className="text-xs font-bold text-emerald-400 mt-0.5">{fmtOrbit(metrics)}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                  <div className="text-[10px] text-white/40 uppercase">Pre-Event Date</div>
-                  <div className="text-xs font-bold text-white mt-0.5">{metrics.before_date.split('T')[0]}</div>
+                  <div className="text-[10px] text-white/40 uppercase">Before Date</div>
+                  <div className="text-xs font-bold text-white mt-0.5">{fmtDate(metrics.before_date)}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                  <div className="text-[10px] text-white/40 uppercase">Post-Event Date</div>
-                  <div className="text-xs font-bold text-white mt-0.5">{metrics.after_date.split('T')[0]}</div>
+                  <div className="text-[10px] text-white/40 uppercase">After Date</div>
+                  <div className="text-xs font-bold text-white mt-0.5">{fmtDate(metrics.after_date)}</div>
+                </div>
+                {isNum(metrics.permanent_water_km2) && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 col-span-2">
+                    <div className="text-[10px] text-white/40 uppercase">Permanent Water (both scenes)</div>
+                    <div className="text-xs font-bold text-white mt-0.5">{fmtNum(metrics.permanent_water_km2, 2)} km²</div>
+                  </div>
+                )}
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+                  <div className="text-[10px] text-white/40 uppercase">Polarisation</div>
+                  <div className="text-xs font-bold text-white mt-0.5">{fmtText(metrics.polarization)}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+                  <div className="text-[10px] text-white/40 uppercase">Incidence Angles</div>
+                  <div className="text-xs font-bold text-white mt-0.5">{fmtRange(metrics.incidence_angles, '°')}</div>
                 </div>
               </div>
 
-              {/* Official ISRO NRSC DEM & LULC 2024-25 Metadata Grid */}
-              <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-mono text-cyan-300">
-                  <span className="flex items-center gap-1.5 font-bold">
-                    <Mountain className="w-4 h-4 text-amber-400" />
-                    ISRO NRSC DEM &amp; LULC 2024–25 (BHUVAN)
-                  </span>
-                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-400/30 px-2 py-0.5 rounded-full">
-                    {ISRO_DEM_LULC_METADATA_2024_25.accuracy.overallClassificationAccuracy} ACCURACY
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Datum &amp; Spheroid</div>
-                    <div className="text-xs font-bold text-white mt-0.5">{ISRO_DEM_LULC_METADATA_2024_25.spatialReference.datum}</div>
+              {/* Source granules */}
+              <div className="p-3 rounded-2xl bg-black/40 border border-white/10 space-y-1.5 text-[10px] font-mono">
+                <div className="text-white/40 uppercase font-semibold">Source Granules</div>
+                <div className="break-all text-white/80"><span className="text-white/40">Before: </span>{fmtText(metrics.before_granule)}</div>
+                <div className="break-all text-white/80"><span className="text-white/40">After: </span>{fmtText(metrics.after_granule)}</div>
+                {regionCatalog?.pairs && regionCatalog.pairs.length > 0 && (
+                  <div className="pt-1 text-white/50">
+                    {regionCatalog.pairs.length} scene pair{regionCatalog.pairs.length === 1 ? '' : 's'} in available_scenes.json
                   </div>
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Scale &amp; Coverage</div>
-                    <div className="text-xs font-bold text-cyan-400 mt-0.5">{ISRO_DEM_LULC_METADATA_2024_25.spatialReference.scale} (68°–98°E)</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Plain Terrain Model</div>
-                    <div className="text-xs font-bold text-emerald-400 mt-0.5">1-Pixel (2nd Order Poly)</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Hilly Terrain Model</div>
-                    <div className="text-xs font-bold text-amber-300 mt-0.5">2–3 Pixels (TIN AOI Model)</div>
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-[11px] text-white/70 space-y-1 font-sans">
-                  <div className="font-mono text-[10px] text-white/40 uppercase font-semibold">Lineage &amp; Sensor Citation</div>
-                  <p>
-                    {ISRO_DEM_LULC_METADATA_2024_25.agency.division}, {ISRO_DEM_LULC_METADATA_2024_25.agency.organisation}, {ISRO_DEM_LULC_METADATA_2024_25.agency.address}. Multitemporal IRS P6 AWiFS sensor calibrated for Net Sown Area and seasonal delta floodplains across Tamil Nadu and Assam.
-                  </p>
-                </div>
+                )}
               </div>
 
               {/* 4 Classification Quick Metrics */}
               <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-white/80">
-                  Detected Surface Classification
+                  Detected Change Classes
                 </div>
                 <div className="space-y-1.5 text-xs font-mono">
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-cyan-950/30 border border-cyan-400/20">
-                    <span className="flex items-center gap-2 text-cyan-300">
-                      <span className="w-2 h-2 rounded-full bg-[#00F0FF]" />
-                      Open Floodwater
-                    </span>
-                    <span className="font-bold">{c1.area_km2} km² ({c1.percentage}%)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-pink-950/30 border border-pink-400/20">
-                    <span className="flex items-center gap-2 text-pink-300">
-                      <span className="w-2 h-2 rounded-full bg-[#FF2E93]" />
-                      Flooded Canopy (Mangroves)
-                    </span>
-                    <span className="font-bold">{c2.area_km2} km² ({c2.percentage}%)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-950/30 border border-emerald-400/20">
-                    <span className="flex items-center gap-2 text-emerald-300">
-                      <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                      Managed Paddy Inundation
-                    </span>
-                    <span className="font-bold">{c3.area_km2} km² ({c3.percentage}%)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-amber-950/30 border border-amber-400/20">
-                    <span className="flex items-center gap-2 text-amber-300">
-                      <span className="w-2 h-2 rounded-full bg-[#FFB800]" />
-                      Wetland Drying / Sandbars
-                    </span>
-                    <span className="font-bold">{c4.area_km2} km² ({c4.percentage}%)</span>
-                  </div>
+                  {CLASS_META.map(({ id }) => {
+                    const c = getClass(metrics, id);
+                    const color = c?.hex || CLASS_COLORS[id];
+                    return (
+                      <div key={id} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+                        <span className="flex items-center gap-2 text-white/80">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                          {className(id)}
+                        </span>
+                        <span className="font-bold">
+                          {c && isNum(c.area_km2) ? `${fmtNum(c.area_km2, 2)} km² (${fmtPct(c.percentage)})` : DASH}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
+                <p className="text-[10px] text-white/40 font-sans">
+                  Rule-based backscatter change classes; not validated against ground truth.
+                </p>
               </div>
 
-              {/* Vulnerability & Population Demographics */}
-              <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/90">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                    Vulnerability & Demographics
+              {/* Processing statistics: only rows the pipeline actually computed */}
+              {validationRows.length > 0 && (
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-white/80">Processing Statistics</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    {validationRows.map((r) => (
+                      <div key={r.label} className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <div className="text-[10px] text-white/40 uppercase">{r.label}</div>
+                        <div className="text-xs font-bold text-white mt-0.5">{r.value}</div>
+                      </div>
+                    ))}
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${demographicData.riskBg} ${demographicData.riskColor}`}>
-                    {demographicData.riskLevel}
-                  </span>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Population Exposed</div>
-                    <div className="text-lg font-bold text-red-400 mt-0.5">
-                      {demographicData.populationExposed}
+              {/* Provenance (rendered generically; hidden if absent) */}
+              {provRows.length > 0 && (
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold uppercase tracking-wider text-white/80 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                      Provenance
                     </div>
-                    <div className="text-[10px] text-white/50 truncate mt-0.5">
-                      {demographicData.populationSubtext}
-                    </div>
+                    {provRows.length > 6 && (
+                      <button
+                        onClick={() => setShowAllProvenance((v) => !v)}
+                        className="text-[10px] text-cyan-300 hover:text-cyan-200 font-mono cursor-pointer"
+                      >
+                        {showAllProvenance ? 'Show less' : `Show all (${provRows.length})`}
+                      </button>
+                    )}
                   </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Infrastructure Risk</div>
-                    <div className="text-xs font-bold text-amber-300 mt-1 line-clamp-2">
-                      {demographicData.infrastructureRisk}
-                    </div>
+                  <div className="space-y-1 text-[10px] font-mono">
+                    {(showAllProvenance ? provRows : provRows.slice(0, 6)).map((r) => (
+                      <div key={r.key} className="flex gap-2">
+                        <span className="text-white/40 shrink-0">{r.key}</span>
+                        <span className="text-white/80 break-all">{r.value}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
-                <div className="p-3 rounded-xl bg-white/5 border border-white/5 space-y-1">
-                  <div className="text-[10px] uppercase font-mono text-cyan-300 font-semibold flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                    Primary Cause
-                  </div>
-                  <p className="text-xs text-white/80 leading-relaxed font-sans">
-                    {demographicData.primaryCause}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -462,135 +450,125 @@ export function NasaModulesSheet({
             <div className="space-y-4 animate-in fade-in duration-150">
               {/* 4 Interactive KPI Cards (Zoom on Click) */}
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleSelectClassLargest(1)}
-                  className="p-3 rounded-2xl bg-[#090E1F] hover:bg-[#0E1630] border border-[#00F0FF]/30 text-left transition group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between text-[11px] font-bold text-[#00F0FF]">
-                    <span>OPEN FLOOD</span>
-                    <span className="text-white/40">{c1.percentage}%</span>
-                  </div>
-                  <div className="text-xl font-extrabold text-white font-mono mt-0.5">{c1.area_km2} km²</div>
-                  <div className="text-[10px] text-cyan-300/80 mt-1">ΔHH ≤ -3.5 dB • Click Zoom</div>
-                </button>
-
-                <button
-                  onClick={() => handleSelectClassLargest(2)}
-                  className="p-3 rounded-2xl bg-[#17091B] hover:bg-[#250F2C] border border-[#FF2E93]/30 text-left transition group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between text-[11px] font-bold text-[#FF2E93]">
-                    <span>CANOPY</span>
-                    <span className="text-white/40">{c2.percentage}%</span>
-                  </div>
-                  <div className="text-xl font-extrabold text-white font-mono mt-0.5">{c2.area_km2} km²</div>
-                  <div className="text-[10px] text-pink-300/80 mt-1">ΔHH ≥ +2.5 dB • Click Zoom</div>
-                </button>
-
-                <button
-                  onClick={() => handleSelectClassLargest(3)}
-                  className="p-3 rounded-2xl bg-[#081812] hover:bg-[#0E241B] border border-[#10B981]/30 text-left transition group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between text-[11px] font-bold text-[#10B981]">
-                    <span>PADDY</span>
-                    <span className="text-white/40">{c3.percentage}%</span>
-                  </div>
-                  <div className="text-xl font-extrabold text-white font-mono mt-0.5">{c3.area_km2} km²</div>
-                  <div className="text-[10px] text-emerald-300/80 mt-1">Bunds • Click Zoom</div>
-                </button>
-
-                <button
-                  onClick={() => handleSelectClassLargest(4)}
-                  className="p-3 rounded-2xl bg-[#191408] hover:bg-[#281F0C] border border-[#FFB800]/30 text-left transition group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between text-[11px] font-bold text-[#FFB800]">
-                    <span>DRYING</span>
-                    <span className="text-white/40">{c4.percentage}%</span>
-                  </div>
-                  <div className="text-xl font-extrabold text-white font-mono mt-0.5">{c4.area_km2} km²</div>
-                  <div className="text-[10px] text-amber-300/80 mt-1">Sandbars • Click Zoom</div>
-                </button>
+                {[
+                  { id: 1, c: c1, label: 'OPEN WATER', bg: 'bg-[#090E1F] hover:bg-[#0E1630]', border: 'border-[#00F0FF]/30', text: 'text-[#00F0FF]', sub: 'text-cyan-300/80' },
+                  { id: 2, c: c2, label: 'VEGETATION', bg: 'bg-[#17091B] hover:bg-[#250F2C]', border: 'border-[#FF2E93]/30', text: 'text-[#FF2E93]', sub: 'text-pink-300/80' },
+                  { id: 3, c: c3, label: 'PADDY', bg: 'bg-[#081812] hover:bg-[#0E241B]', border: 'border-[#10B981]/30', text: 'text-[#10B981]', sub: 'text-emerald-300/80' },
+                  { id: 4, c: c4, label: 'DRYING', bg: 'bg-[#191408] hover:bg-[#281F0C]', border: 'border-[#FFB800]/30', text: 'text-[#FFB800]', sub: 'text-amber-300/80' },
+                ].map((k) => (
+                  <button
+                    key={k.id}
+                    onClick={() => handleSelectClassLargest(k.id)}
+                    className={`p-3 rounded-2xl ${k.bg} border ${k.border} text-left transition group cursor-pointer`}
+                    title={className(k.id)}
+                  >
+                    <div className={`flex items-center justify-between text-[11px] font-bold ${k.text}`}>
+                      <span>{k.label}</span>
+                      <span className="text-white/40">{k.c && isNum(k.c.percentage) ? `${fmtNum(k.c.percentage, 2)}%` : DASH}</span>
+                    </div>
+                    <div className="text-xl font-extrabold text-white font-mono mt-0.5">
+                      {k.c && isNum(k.c.area_km2) ? `${fmtNum(k.c.area_km2, 2)} km²` : DASH}
+                    </div>
+                    <div className={`text-[10px] ${k.sub} mt-1`}>Click to zoom to largest polygon</div>
+                  </button>
+                ))}
               </div>
 
-              {/* Inspected Target Card */}
-              <div className="p-4 rounded-2xl bg-black/50 border border-cyan-500/30 space-y-3">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-cyan-300">{activePoly.id}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-400/30">
-                      {activePoly.class_name}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" />
-                    Verified
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs text-white/60 font-mono">
-                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{activePoly.centroid[1].toFixed(4)}°N, {activePoly.centroid[0].toFixed(4)}°E</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Surface Area</div>
-                    <div className="text-sm font-bold text-white mt-0.5">{activePoly.area_km2} km² ({activePoly.area_hectares} ha)</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 uppercase">Radar Looks / ENL</div>
-                    <div className="text-sm font-bold text-emerald-400 mt-0.5">{(activePoly.confidence * 100).toFixed(0)}% (5x5 Lee)</div>
-                  </div>
-                </div>
-
-                {/* Backscatter Shift Radiometry */}
-                <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5 font-mono">
-                  <div className="text-[10px] text-white/50 uppercase tracking-wider">L-Band Backscatter Radiometry (γ⁰)</div>
-                  <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="p-1.5 rounded-lg bg-white/5">
-                      <div className="text-[9px] text-white/40">BEFORE HH</div>
-                      <div className="text-xs font-bold text-white/80">{activePoly.before_hh_db} dB</div>
-                    </div>
-                    <div className="p-1.5 rounded-lg bg-white/5">
-                      <div className="text-[9px] text-white/40">AFTER HH</div>
-                      <div className="text-xs font-bold text-white/80">{activePoly.after_hh_db} dB</div>
-                    </div>
-                    <div className="p-1.5 rounded-lg bg-cyan-950/60 border border-cyan-400/30">
-                      <div className="text-[9px] text-cyan-300">ΔHH SHIFT</div>
-                      <div className="text-xs font-bold text-cyan-300">{activePoly.delta_hh_db} dB</div>
+              {/* Inspected Target Card (only for a polygon the user selected) */}
+              {activePoly ? (
+                <div className="p-4 rounded-2xl bg-black/50 border border-cyan-500/30 space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-sm text-cyan-300">{activePoly.id}</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-400/30">
+                        {activePoly.class_name}
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                {/* Physical vs Human Driver */}
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1">
-                  <div className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Physical vs. Human Driver Hypothesis</div>
-                  <p className="text-[11px] text-white/70 leading-relaxed">{activePoly.driver_hypothesis}</p>
-                </div>
-              </div>
+                  <div className="flex items-center gap-1.5 text-xs text-white/60 font-mono">
+                    <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{fmtLatLng(activePoly.centroid)}</span>
+                  </div>
 
-              {/* Historical Backscatter Shift Chart */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <div className="text-[10px] text-white/40 uppercase">Surface Area</div>
+                      <div className="text-sm font-bold text-white mt-0.5">
+                        {isNum(activePoly.area_km2) ? `${fmtNum(activePoly.area_km2, 3)} km²` : DASH}
+                        {isNum(activePoly.area_hectares) ? ` (${fmtNum(activePoly.area_hectares, 1)} ha)` : ''}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <div className="text-[10px] text-white/40 uppercase" title="Share of the polygon's pixels that pass the class test by at least 1 dB. Not a probability.">Robustness Score</div>
+                      <div className="text-sm font-bold text-emerald-400 mt-0.5">{fmtPct01(activePoly.confidence)}</div>
+                    </div>
+                  </div>
+
+                  {/* Backscatter Shift Radiometry */}
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5 font-mono">
+                    <div className="text-[10px] text-white/50 uppercase tracking-wider">HH Backscatter (γ⁰)</div>
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <div className="p-1.5 rounded-lg bg-white/5">
+                        <div className="text-[9px] text-white/40">BEFORE HH</div>
+                        <div className="text-xs font-bold text-white/80">{fmtDb(activePoly.before_hh_db)}</div>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-white/5">
+                        <div className="text-[9px] text-white/40">AFTER HH</div>
+                        <div className="text-xs font-bold text-white/80">{fmtDb(activePoly.after_hh_db)}</div>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-cyan-950/60 border border-cyan-400/30">
+                        <div className="text-[9px] text-cyan-300">ΔHH SHIFT</div>
+                        <div className="text-xs font-bold text-cyan-300">{fmtDb(activePoly.delta_hh_db)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {activePoly.driver_hypothesis && (
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1">
+                      <div className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Pipeline Note (unverified)</div>
+                      <p className="text-[11px] text-white/70 leading-relaxed">{activePoly.driver_hypothesis}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 text-[11px] text-white/60">
+                  Click a polygon on the map, or a class card above, to inspect its backscatter values.
+                </div>
+              )}
+
+              {/* Mean ΔHH per class, from the loaded evidence polygons */}
               <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-white">Backscatter Radiometry Shift (γ⁰ dB)</span>
-                  <span className="text-[10px] font-mono text-cyan-300">Dual-Pol HH</span>
+                  <span className="font-bold text-white">Mean HH Change per Class (dB)</span>
+                  <span className="text-[10px] font-mono text-cyan-300">
+                    {evidencePolys.length} polygons
+                  </span>
                 </div>
-                <div className="w-full h-44">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={backscatterChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" fontSize={9} tickLine={false} />
-                      <YAxis stroke="rgba(255,255,255,0.4)" fontSize={9} tickLine={false} unit=" dB" domain={[-20, 0]} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'rgba(10,14,24,0.95)', border: '1px solid rgba(0,229,255,0.4)', borderRadius: '12px', fontSize: '11px' }}
-                        formatter={(val: any) => [`${val} dB`, 'Backscatter']}
-                      />
-                      <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
-                        {backscatterChartData.map((entry, idx) => (
-                          <Cell key={`cell-${idx}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {backscatterChartData.length > 0 ? (
+                  <div className="w-full h-44">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={backscatterChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                        <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" fontSize={9} tickLine={false} />
+                        <YAxis stroke="rgba(255,255,255,0.4)" fontSize={9} tickLine={false} unit=" dB" />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'rgba(10,14,24,0.95)', border: '1px solid rgba(0,229,255,0.4)', borderRadius: '12px', fontSize: '11px' }}
+                          formatter={(val: unknown, _name: unknown, item: { payload?: { n?: number } }) => [
+                            `${String(val)} dB (n=${item?.payload?.n ?? 0})`,
+                            'Mean ΔHH',
+                          ]}
+                        />
+                        <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
+                          {backscatterChartData.map((entry, idx) => (
+                            <Cell key={`cell-${idx}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-white/50">No ΔHH values available in evidence_polygons.geojson.</p>
+                )}
               </div>
             </div>
           )}
@@ -631,7 +609,14 @@ export function NasaModulesSheet({
           ───────────────────────────────────────────────────────────── */}
           {activeModule === 'climate' && (
             <div className="animate-in fade-in duration-150">
-              <ClimateTab regionId={metrics.region_id} regionName={metrics.region_name} climate={climate} />
+              <ClimateTab
+                regionId={metrics.region_id}
+                regionName={metrics.region_name}
+                climate={climate}
+                beforeDate={metrics.before_date}
+                afterDate={metrics.after_date}
+                center={metrics.center}
+              />
             </div>
           )}
 
@@ -640,88 +625,43 @@ export function NasaModulesSheet({
           ───────────────────────────────────────────────────────────── */}
           {activeModule === 'alerts' && (
             <div className="space-y-3 animate-in fade-in duration-150">
-              <div className="p-3.5 rounded-2xl bg-red-950/30 border border-red-500/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-red-500/20 border border-red-400/40 flex items-center justify-center text-red-400">
-                    <Bell className="w-4 h-4 animate-bounce" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Live NISAR Threshold Monitor</h4>
-                    <p className="text-[10px] text-white/60">Automated levee & canopy anomaly alerts</p>
-                  </div>
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/15 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/70">
+                  <Bell className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/30 text-red-300 font-bold border border-red-400/50">
-                  ACTIVE
-                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Change Highlights</h4>
+                  <p className="text-[10px] text-white/60">
+                    Largest change polygons in this scene pair. No live monitoring or alert feed is connected.
+                  </p>
+                </div>
               </div>
 
-              {/* Alert Feed Items */}
               <div className="space-y-2">
-                {/* Alert 1 */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-red-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded-full border border-red-500/30">
-                      CRITICAL BREACH
-                    </span>
-                    <button
-                      onClick={() => setFollowedAlerts((prev) => ({ ...prev, 'alert-1': !prev['alert-1'] }))}
-                      className="text-[10px] text-cyan-300 hover:text-cyan-200 transition font-mono"
-                    >
-                      {followedAlerts['alert-1'] ? '✓ Subscribed' : '+ Subscribe'}
-                    </button>
+                {topPolys.length === 0 && (
+                  <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 text-[11px] text-white/50">
+                    No evidence polygons loaded for this region.
                   </div>
-                  <h5 className="text-xs font-bold text-white">
-                    {isNag
-                      ? 'ΔHH -6.65 dB Specular Levee Breach at Kaduvaiyar Distributary'
-                      : 'ΔHH -7.12 dB Embankment Breach into Garamur Wetlands'}
-                  </h5>
-                  <p className="text-[11px] text-white/70 leading-relaxed">
-                    Overland floodwater sheet expanding at &gt; 12.4 km²/cycle. Depth exceeds vehicular clearance on lower link highways.
-                  </p>
-                  <div className="text-[10px] text-white/40 font-mono">Location: {metrics.center[1].toFixed(4)}°N, {metrics.center[0].toFixed(4)}°E</div>
-                </div>
-
-                {/* Alert 2 */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-pink-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold text-pink-400 bg-pink-950/60 px-2 py-0.5 rounded-full border border-pink-500/30">
-                      WARNING SURGE
-                    </span>
-                    <button
-                      onClick={() => setFollowedAlerts((prev) => ({ ...prev, 'alert-2': !prev['alert-2'] }))}
-                      className="text-[10px] text-cyan-300 hover:text-cyan-200 transition font-mono"
-                    >
-                      {followedAlerts['alert-2'] ? '✓ Subscribed' : '+ Subscribe'}
-                    </button>
-                  </div>
-                  <h5 className="text-xs font-bold text-white">
-                    {isNag
-                      ? '+3.8 dB Dihedral Double-Bounce Surge in Muthupet Mangroves'
-                      : '+3.4 dB Sub-Canopy Inundation in Salmora Bamboo Forest'}
-                  </h5>
-                  <p className="text-[11px] text-white/70 leading-relaxed">
-                    Radar waves reveal deep stagnant standing floodwater under forest canopy. Severe root pneumatophore asphyxiation hazard if sustained &gt; 7 days.
-                  </p>
-                  <div className="text-[10px] text-white/40 font-mono">Status: Tidal Regulator Flush Recommended</div>
-                </div>
-
-                {/* Alert 3 */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-amber-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/30">
-                      AGRO ADVISORY
-                    </span>
-                    <span className="text-[10px] text-white/40 font-mono">72h Threshold</span>
-                  </div>
-                  <h5 className="text-xs font-bold text-white">
-                    {isNag
-                      ? 'Samba Paddy Bund Submergence Exceeded 48h Tolerance'
-                      : 'Ahu Crop Inundation in Lower Floodplain'}
-                  </h5>
-                  <p className="text-[11px] text-white/70 leading-relaxed">
-                    {c3.area_km2} km² of bunded agricultural parcels submerged. Sluice gate de-siltation required before high tide.
-                  </p>
-                </div>
+                )}
+                {topPolys.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      onSelectPolygon(p);
+                      if (p.centroid) onFocusPolygon(p.centroid);
+                    }}
+                    className="w-full text-left p-3.5 rounded-2xl bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-400/40 space-y-1 transition cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-cyan-300">{p.id}</span>
+                      <span className="text-[10px] font-mono text-white/50">{p.class_name}</span>
+                    </div>
+                    <div className="text-xs font-bold text-white">
+                      {fmtNum(p.area_km2, 3)} km² • ΔHH {fmtDb(p.delta_hh_db)}
+                    </div>
+                    <div className="text-[10px] text-white/40 font-mono">{fmtLatLng(p.centroid)}</div>
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -757,7 +697,7 @@ export function NasaModulesSheet({
                   <span>2. Specular Extinction (Open Floodwater)</span>
                 </div>
                 <p className="text-[11px] text-white/70 leading-relaxed">
-                  Smooth standing floodwater acts like a mirror to radar pulses, deflecting electromagnetic energy away from the satellite antenna. This causes a dramatic radar backscatter drop (ΔHH ≤ -3.5 dB, down to -17 dB), making open floodwater appear stark black/cyan.
+                  Smooth standing floodwater acts like a mirror to radar pulses, deflecting electromagnetic energy away from the satellite antenna. This causes a sharp drop in radar backscatter, so newly flooded open ground appears dark in the radar image (highlighted cyan in the change overlay). Wind-roughened water and some smooth surfaces can confuse this.
                 </p>
               </div>
 
@@ -768,7 +708,7 @@ export function NasaModulesSheet({
                   <span>3. Dihedral Corner Reflection (Flooded Canopy)</span>
                 </div>
                 <p className="text-[11px] text-white/70 leading-relaxed">
-                  When floodwater submerges the base of trees or mangroves, a right-angle corner reflector is formed between vertical tree trunks and the horizontal standing water surface. Radar pulses bounce twice and return directly to the sensor, creating an intense bright surge (ΔHH ≥ +2.5 dB, highlighted in magenta).
+                  When floodwater submerges the base of trees or mangroves, a right-angle corner reflector is formed between vertical tree trunks and the horizontal standing water surface. Radar pulses bounce twice and return directly to the sensor, so flooded vegetation can get brighter (highlighted in magenta).
                 </p>
               </div>
 
@@ -776,10 +716,14 @@ export function NasaModulesSheet({
               <div className="p-3.5 rounded-2xl bg-black/40 border border-emerald-500/30 space-y-1.5">
                 <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
                   <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                  <span>4. 5x5 Lee Filter (Linear Power Domain)</span>
+                  <span>4. Speckle Filtering (Linear Power Domain)</span>
                 </div>
                 <p className="text-[11px] text-white/70 leading-relaxed">
-                  Raw SAR contains multiplicative speckle noise. DELTA-SAR applies a 5x5 Lee adaptive speckle filter in the linear power domain before logarithmic dB conversion, achieving an Equivalent Number of Looks (ENL) ≈ 4.15 for crisp 20m pixel boundary detection.
+                  Raw SAR contains multiplicative speckle noise. An adaptive (Lee) speckle filter is applied in the linear power domain before conversion to decibels (dB).
+                  {metrics.validation_stats?.lee_filter_window ? ` This scene pair used a ${metrics.validation_stats.lee_filter_window} window` : ''}
+                  {isNum(metrics.validation_stats?.equivalent_number_of_looks)
+                    ? `${metrics.validation_stats?.lee_filter_window ? ', with' : ' Measured'} equivalent number of looks (ENL) ${fmtNum(metrics.validation_stats?.equivalent_number_of_looks, 2)}.`
+                    : metrics.validation_stats?.lee_filter_window ? '.' : ''}
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-15T02:40:54.492033Z",
-  "description": "NASA-ISRO NISAR L2 GCOV Geometry-Compatible Orbit Scene Pairs",
+  "generated_at": "2026-11-15T18:32:15Z",
+  "description": "NASA-ISRO NISAR L2 GCOV same-track scene pairs (real data, NISAR_L2_GCOV_V1)",
   "regions": {
     "nagapattinam": {
       "region_id": "nagapattinam",
@@ -18,91 +18,37 @@
       "zoom": 11.3,
       "pairs": [
         {
-          "id": "NAG_PAIR_01_PEAK",
-          "label": "Peak Inundation Crest (Pre-Cyclone vs. Post-Fengal Flood)",
-          "orbit_track": 112,
-          "orbit_direction": "Ascending",
-          "frame_number": 45,
+          "id": "NAG_PAIR_01_REAL",
+          "label": "NISAR GCOV 22 Oct vs 3 Nov 2026 (track 149, frame 83)",
+          "orbit_track": 149,
+          "orbit_direction": "Descending",
+          "frame_number": 83,
           "geometry_lock": true,
           "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
           "polarization": "Dual-Pol (HH + HV)",
           "incidence_angle_range": [
-            33.8,
-            41.5
+            43.01,
+            45.18
           ],
           "before": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5",
-            "date": "2026-10-14T00:32:15Z",
-            "nominal_looks": 4.2,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5"
+            "granule_id": "NISAR_L2_PR_GCOV_033_149_D_083_4005_DHDH_A_20261022T131133_20261022T131207_P05036_N_F_J_001",
+            "date": "2026-10-22T13:11:33Z",
+            "nominal_looks": 45.3,
+            "s3_url": "s3://sds-n-cumulus-prod-nisar-products/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_033_149_D_083_4005_DHDH_A_20261022T131133_20261022T131207_P05036_N_F_J_001/NISAR_L2_PR_GCOV_033_149_D_083_4005_DHDH_A_20261022T131133_20261022T131207_P05036_N_F_J_001.h5",
+            "https_url": "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_033_149_D_083_4005_DHDH_A_20261022T131133_20261022T131207_P05036_N_F_J_001/NISAR_L2_PR_GCOV_033_149_D_083_4005_DHDH_A_20261022T131133_20261022T131207_P05036_N_F_J_001.h5"
           },
           "after": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5",
-            "date": "2026-11-06T00:32:15Z",
-            "nominal_looks": 4.1,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5"
+            "granule_id": "NISAR_L2_PR_GCOV_034_149_D_083_4005_DHDH_A_20261103T131133_20261103T131208_P05036_N_F_J_001",
+            "date": "2026-11-03T13:11:33Z",
+            "nominal_looks": 45.3,
+            "s3_url": "s3://sds-n-cumulus-prod-nisar-products/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_034_149_D_083_4005_DHDH_A_20261103T131133_20261103T131208_P05036_N_F_J_001/NISAR_L2_PR_GCOV_034_149_D_083_4005_DHDH_A_20261103T131133_20261103T131208_P05036_N_F_J_001.h5",
+            "https_url": "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_034_149_D_083_4005_DHDH_A_20261103T131133_20261103T131208_P05036_N_F_J_001/NISAR_L2_PR_GCOV_034_149_D_083_4005_DHDH_A_20261103T131133_20261103T131208_P05036_N_F_J_001.h5"
           },
-          "flood_event": "Post-Monsoon Cauvery Distributary Breach & Coastal Inundation",
+          "flood_event": "Observed change, 22 Oct \u2192 3 Nov 2026",
           "active": true
-        },
-        {
-          "id": "NAG_PAIR_02_RECESSION",
-          "label": "Flood Recession & Soil Desiccation (Peak Flood vs. Drainage)",
-          "orbit_track": 112,
-          "orbit_direction": "Ascending",
-          "frame_number": 45,
-          "geometry_lock": true,
-          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
-          "polarization": "Dual-Pol (HH + HV)",
-          "incidence_angle_range": [
-            33.8,
-            41.5
-          ],
-          "before": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5",
-            "date": "2026-11-06T00:32:15Z",
-            "nominal_looks": 4.2,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261106T003215_M01_P_J_001.h5"
-          },
-          "after": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261122T003215_M01_P_J_001.h5",
-            "date": "2026-11-22T00:32:15Z",
-            "nominal_looks": 4.1,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261122T003215_M01_P_J_001.h5"
-          },
-          "flood_event": "Post-Flood Distributary Sluice Drainage & Silt Exposure",
-          "active": false
-        },
-        {
-          "id": "NAG_PAIR_03_AGRO",
-          "label": "Seasonal Samba Rice Paddy Sowing Inundation",
-          "orbit_track": 112,
-          "orbit_direction": "Ascending",
-          "frame_number": 45,
-          "geometry_lock": true,
-          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
-          "polarization": "Dual-Pol (HH + HV)",
-          "incidence_angle_range": [
-            33.8,
-            41.5
-          ],
-          "before": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20260920T003215_M01_P_J_001.h5",
-            "date": "2026-09-20T00:32:15Z",
-            "nominal_looks": 4.2,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20260920T003215_M01_P_J_001.h5"
-          },
-          "after": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5",
-            "date": "2026-10-14T00:32:15Z",
-            "nominal_looks": 4.1,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_112_A_045_2005_HHHV_20261014T003215_M01_P_J_001.h5"
-          },
-          "flood_event": "Controlled Samba Agro-Irrigation & Aquaculture Filling",
-          "active": false
         }
       ],
-      "live_cmr_count": 0
+      "live_cmr_count": 2
     },
     "majuli": {
       "region_id": "majuli",
@@ -120,91 +66,38 @@
       "zoom": 11.1,
       "pairs": [
         {
-          "id": "MAJ_PAIR_01_PEAK",
-          "label": "Brahmaputra High-Monsoon Crest & Sand Dune Avulsion",
-          "orbit_track": 73,
-          "orbit_direction": "Descending",
-          "frame_number": 18,
+          "id": "MAJ_PAIR_01_REAL",
+          "label": "NISAR GCOV 26 Oct vs 7 Nov 2026 (track 40, frame 15)",
+          "orbit_track": 40,
+          "orbit_direction": "Ascending",
+          "frame_number": 15,
           "geometry_lock": true,
           "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
           "polarization": "Dual-Pol (HH + HV)",
           "incidence_angle_range": [
-            33.8,
-            41.5
+            37.56,
+            40.91
           ],
           "before": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5",
-            "date": "2026-06-04T12:15:30Z",
-            "nominal_looks": 4.2,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5"
+            "granule_id": "NISAR_L2_PR_GCOV_034_040_A_015_4005_DHDH_A_20261026T230527_20261026T230601_P05036_N_F_J_001",
+            "date": "2026-10-26T23:05:27Z",
+            "nominal_looks": 40.9,
+            "s3_url": "s3://sds-n-cumulus-prod-nisar-products/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_034_040_A_015_4005_DHDH_A_20261026T230527_20261026T230601_P05036_N_F_J_001/NISAR_L2_PR_GCOV_034_040_A_015_4005_DHDH_A_20261026T230527_20261026T230601_P05036_N_F_J_001.h5",
+            "https_url": "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_034_040_A_015_4005_DHDH_A_20261026T230527_20261026T230601_P05036_N_F_J_001/NISAR_L2_PR_GCOV_034_040_A_015_4005_DHDH_A_20261026T230527_20261026T230601_P05036_N_F_J_001.h5"
           },
           "after": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5",
-            "date": "2026-06-28T12:15:30Z",
-            "nominal_looks": 4.1,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5"
+            "granule_id": "NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001",
+            "date": "2026-11-07T23:05:27Z",
+            "nominal_looks": 40.9,
+            "s3_url": "s3://sds-n-cumulus-prod-nisar-products/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001/NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001.h5",
+            "https_url": "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_V1/NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001/NISAR_L2_PR_GCOV_035_040_A_015_4005_DHDH_A_20261107T230527_20261107T230602_P05036_N_F_J_001.h5"
           },
-          "flood_event": "Brahmaputra Monsoonal Crest & Southern Levee Avulsion",
+          "flood_event": "Observed change, 26 Oct \u2192 7 Nov 2026",
           "active": true
-        },
-        {
-          "id": "MAJ_PAIR_02_RECESSION",
-          "label": "Char Land Emergence & Beel Drainage",
-          "orbit_track": 73,
-          "orbit_direction": "Descending",
-          "frame_number": 18,
-          "geometry_lock": true,
-          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
-          "polarization": "Dual-Pol (HH + HV)",
-          "incidence_angle_range": [
-            33.8,
-            41.5
-          ],
-          "before": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5",
-            "date": "2026-06-28T12:15:30Z",
-            "nominal_looks": 4.2,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260628T121530_M01_P_J_001.h5"
-          },
-          "after": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260716T121530_M01_P_J_001.h5",
-            "date": "2026-07-16T12:15:30Z",
-            "nominal_looks": 4.1,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260716T121530_M01_P_J_001.h5"
-          },
-          "flood_event": "Floodplain Desiccation & Sandbar Emergence",
-          "active": false
-        },
-        {
-          "id": "MAJ_PAIR_03_AGRO",
-          "label": "Pre-Monsoon Ahu Rice & River Basin Expansion",
-          "orbit_track": 73,
-          "orbit_direction": "Descending",
-          "frame_number": 18,
-          "geometry_lock": true,
-          "radar_band": "L-band (1.25 GHz / 24 cm \u03bb)",
-          "polarization": "Dual-Pol (HH + HV)",
-          "incidence_angle_range": [
-            33.8,
-            41.5
-          ],
-          "before": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260512T121530_M01_P_J_001.h5",
-            "date": "2026-05-12T12:15:30Z",
-            "nominal_looks": 4.2,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260512T121530_M01_P_J_001.h5"
-          },
-          "after": {
-            "granule_id": "NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5",
-            "date": "2026-06-04T12:15:30Z",
-            "nominal_looks": 4.1,
-            "s3_url": "s3://nisar-gcov-asf/NISAR_L2_PR_GCOV_002_073_D_018_2005_HHHV_20260604T121530_M01_P_J_001.h5"
-          },
-          "flood_event": "Early Summer Sali & Ahu Ricefield Irrigation",
-          "active": false
         }
       ],
-      "live_cmr_count": 0
+      "live_cmr_count": 2
     }
-  }
+  },
+  "data_mode": "real_nisar_gcov"
 }

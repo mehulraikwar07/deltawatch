@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       }
     }
   } catch {
-    // Graceful fallback to cached calibrated catalog
+    // Fall back to the local catalog (public/data/available_scenes.json)
   }
 
   // 2. Fallback to cached catalog from public/data/available_scenes.json
@@ -50,9 +50,9 @@ export async function GET(req: Request) {
     const regionData = catalog.regions[region] || catalog.regions.nagapattinam;
 
     return NextResponse.json({
-      status: 'calibrated_baseline_cached',
-      source: 'cached_baseline',
-      granule_count: regionData?.pairs?.length || 1,
+      status: 'cached_catalog',
+      source: 'local_available_scenes_json',
+      granule_count: regionData?.pairs?.length ?? 0,
       pairs: regionData?.pairs || [],
       region_meta: regionData,
       timestamp: new Date().toISOString(),

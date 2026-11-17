@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { ClimateData, SearchPlace } from '@/types/google-maps';
 import type { SummaryMetrics } from '@/types/sar';
+import { fmtDate, fmtNum, isNum, isRealData } from '@/lib/metrics';
 
 interface GoogleMapsBottomCardProps {
   metrics: SummaryMetrics;
@@ -36,9 +37,16 @@ export function GoogleMapsBottomCard({
   onOpenDirections,
 }: GoogleMapsBottomCardProps) {
   const title = activePlace ? activePlace.name : metrics.region_name;
+  const sceneParts = [
+    metrics.flood_event || `${fmtDate(metrics.before_date)} → ${fmtDate(metrics.after_date)}`,
+    isNum(metrics.total_swath_area_km2) ? `Area: ${fmtNum(metrics.total_swath_area_km2, 1)} km²` : null,
+    isNum(metrics.orbit_track) ? `Track ${metrics.orbit_track}` : null,
+  ].filter(Boolean);
   const subtitle = activePlace
-    ? `${activePlace.description.slice(0, 50)}... • ${activePlace.floodStatus}`
-    : `${metrics.flood_event} • Swath: ${metrics.total_swath_area_km2} km² • Track ${metrics.orbit_track}`;
+    ? activePlace.description.length > 60
+      ? `${activePlace.description.slice(0, 60)}…`
+      : activePlace.description
+    : sceneParts.join(' • ');
 
   return (
     <div className="w-full max-w-lg bg-[#1E1F22]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_16px_50px_rgba(0,0,0,0.85)] text-white font-sans overflow-hidden pointer-events-auto select-none transition-all">
@@ -49,8 +57,14 @@ export function GoogleMapsBottomCard({
             <h3 className="text-sm sm:text-base font-bold text-white truncate tracking-tight">
               {title}
             </h3>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-400/30 shrink-0">
-              NISAR L2
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded-full border shrink-0 ${
+                isRealData(metrics)
+                  ? 'bg-cyan-950/60 text-cyan-300 border-cyan-400/30'
+                  : 'bg-amber-950/60 text-amber-300 border-amber-400/40'
+              }`}
+            >
+              {isRealData(metrics) ? 'NISAR L2' : 'SYNTHETIC'}
             </span>
           </div>
           <p className="text-[11px] text-white/50 truncate mt-0.5">
@@ -62,17 +76,21 @@ export function GoogleMapsBottomCard({
         <button
           onClick={onOpenClimateModal}
           className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-400/40 transition shrink-0 cursor-pointer group"
-          title="Open Climate, Weather & Air Quality Report"
+          title="Open rainfall & river discharge for the scene-pair window"
         >
           <div className="flex items-center gap-1 text-xs font-bold text-white/90">
             <span className="text-sm">🌧️</span>
-            <span>{climate.tempC}°</span>
+            <span>{isNum(climate.tempC) ? `${climate.tempC}°` : 'Rainfall'}</span>
           </div>
-          <div className="w-[1px] h-3 bg-white/20" />
-          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-            <span>{climate.aqi} AQI</span>
-          </div>
+          {isNum(climate.aqi) && (
+            <>
+              <div className="w-[1px] h-3 bg-white/20" />
+              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                <span>{climate.aqi} AQI</span>
+              </div>
+            </>
+          )}
         </button>
       </div>
 
