@@ -936,3 +936,6 @@ export function SarMapViewer({
     </div>
   );
 }
+
+export default SarMapViewer;
+

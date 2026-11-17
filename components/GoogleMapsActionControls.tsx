@@ -62,6 +62,7 @@ export function GoogleMapsActionControls({
         )}
       </button>
 
+
       {/* 3. COMPASS / RESET NORTH */}
       <button
         onClick={onResetNorth}

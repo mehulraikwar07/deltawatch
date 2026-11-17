@@ -22,9 +22,20 @@ import type {
 import type { SearchPlace, UserProfile } from '@/types/google-maps';
 import type { CompareMode } from './MissionHeader';
 
-// Dynamically import MapLibre viewer to prevent SSR issues with WebGL
+// Dynamically import MapLibre viewer to prevent SSR issues with WebGL and auto-retry on stale dev chunks
 const SarMapViewer = dynamic(
-  () => import('./SarMapViewer').then((mod) => mod.SarMapViewer),
+  () =>
+    import('./SarMapViewer').catch((err) => {
+      console.warn('[SarMapViewer dynamic load error]', err);
+      if (typeof window !== 'undefined') {
+        const hasRetried = sessionStorage.getItem('sar_chunk_reload');
+        if (!hasRetried) {
+          sessionStorage.setItem('sar_chunk_reload', 'true');
+          window.location.reload();
+        }
+      }
+      return import('./SarMapViewer');
+    }),
   {
     ssr: false,
     loading: () => (

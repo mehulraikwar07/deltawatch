@@ -2,27 +2,27 @@ export const dynamic = 'force-dynamic';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import dns from 'node:dns';
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import type { SummaryMetrics, EvidencePolygonProperties } from '@/types/sar';
 import {
   GEMINI_MODEL,
-  GEMINI_TIMEOUT_MS,
   TEMPLATE_ENGINE,
-  buildAiPrompt,
   buildTemplateReport,
   type ReportResponse,
 } from '@/lib/reportTemplate';
 
+// PREVENTS LOCAL MACBOOK NETWORK TIMEOUTS (HTTP 500: fetch failed)
+dns.setDefaultResultOrder('ipv4first');
+
 interface ReportRequestBody {
-  regionId?: string;
   metrics: SummaryMetrics;
   selectedPolygon?: EvidencePolygonProperties | null;
-  customFocus?: string;
   prompt?: string;
+  customFocus?: string;
 }
 
-/** Server-side key only. Never use a NEXT_PUBLIC_ variable for this: it would ship to the browser. */
+/** Server-side key only. Reads environment variable with direct .env.local fallback */
 function readApiKey(): string {
   let rawKey = process.env.GEMINI_API_KEY || '';
   if (!rawKey) {
@@ -34,62 +34,10 @@ function readApiKey(): string {
         if (match) rawKey = match[1];
       }
     } catch {
-      // ignore: treated as "no key configured"
+      // ignore
     }
   }
   return rawKey.replace(/^["']|["']$/g, '').trim();
-}
-
-function shortReason(err: unknown): string {
-  if (err instanceof Error && (err.name === 'AbortError' || /abort|timed? ?out/i.test(err.message))) {
-    return `Gemini timed out after ${GEMINI_TIMEOUT_MS / 1000} s`;
-  }
-  let msg = err instanceof Error ? err.message : String(err);
-  // SDK errors carry a JSON body: {"error":{"code":504,"status":"DEADLINE_EXCEEDED","message":...}}
-  try {
-    const parsed = JSON.parse(msg.slice(msg.indexOf('{')));
-    const e = parsed?.error;
-    if (e?.status === 'DEADLINE_EXCEEDED') return `Gemini timed out after ${GEMINI_TIMEOUT_MS / 1000} s`;
-    if (e) msg = `${e.code ?? ''} ${e.status ?? ''}${e.message ? ` – ${e.message}` : ''}`.trim();
-  } catch {
-    // not JSON; use as-is
-  }
-  // Keep it short and strip anything that looks like a key.
-  return `Gemini error: ${msg.replace(/key=[^&\s]+/gi, 'key=***').replace(/\s+/g, ' ').slice(0, 140)}`;
-}
-
-async function callGemini(apiKey: string, prompt: string): Promise<string> {
-  const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      const e = new Error('timed out');
-      e.name = 'AbortError';
-      reject(e);
-    }, GEMINI_TIMEOUT_MS);
-  });
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await Promise.race([
-      ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: prompt,
-        config: {
-          temperature: 0.2,
-          maxOutputTokens: 2048,
-          abortSignal: controller.signal,
-          httpOptions: { timeout: GEMINI_TIMEOUT_MS },
-        },
-      }),
-      timeout,
-    ]);
-    const text = response.text?.trim();
-    if (!text) throw new Error('empty response');
-    return text;
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
 }
 
 export async function POST(req: Request) {
@@ -98,37 +46,156 @@ export async function POST(req: Request) {
     const { prompt: reqPrompt, customFocus, metrics, selectedPolygon } = body;
 
     if (!metrics) {
-      return NextResponse.json({ error: 'Missing summary metrics in request body' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing summary metrics in request body', status: 400 },
+        { status: 400 }
+      );
     }
 
-    const userPrompt = (reqPrompt || customFocus || '').trim().slice(0, 1000);
+    const userPrompt = (reqPrompt || customFocus || '').trim();
     const apiKey = readApiKey();
-    let fallbackReason = 'no GEMINI_API_KEY configured on the server';
 
-    if (apiKey) {
+    if (!apiKey) {
+      const fallbackReason = 'no GEMINI_API_KEY configured on the server (.env.local)';
+      return NextResponse.json({
+        report: buildTemplateReport(metrics, userPrompt, selectedPolygon, fallbackReason),
+        generatedWith: TEMPLATE_ENGINE,
+        fallbackReason,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Structured aerospace system instruction with strictly conditional logic
+    const systemInstruction = `You are the Lead Radar Hydrologist for DELTAWATCH, an operational NASA Space Apps Challenge 2026 platform ("Dancing with the SARs").
+You analyze active NISAR L-Band (1.25 GHz / 24 cm wavelength) dual-polarimetric (HH+HV) L2 GCOV (Geocoded Co-Polarized Backscatter) observation datasets for Indian delta basins.
+
+CRITICAL RESPONSE RULES:
+1. CASUAL GREETINGS (e.g., "hi", "hello", "hey"): Reply with a warm, 1-2 sentence greeting introducing yourself as the Lead Radar Hydrologist. Do NOT generate a structured report.
+2. SPECIFIC QUESTIONS (e.g., "what is dihedral double-bounce?", "how much area is flooded?"): Answer concisely in 2-3 sentences using only the relevant telemetry provided below.
+3. FULL REPORTS (e.g., "summary", "briefing", "report", or clicked analysis topics): Generate a comprehensive, sectioned Operational Situation Summary with quantitative metrics.
+
+STRICT FORMATTING REQUIREMENTS:
+- Output clean, professional Markdown with clear section headings (## or ###), bold highlights, and bullet points (when generating a report).
+- NEVER use LaTeX math syntax or delimiters. Do NOT use $, \\Delta, \\text{}, \\approx, \\le, or \\ge.
+- Always use standard Unicode symbols instead: ΔHH, ≤, ≥, ~, →, dB, km², and ha.`;
+
+    const c1 = metrics.classes?.['1'] || { area_km2: 0, percentage: 0 };
+    const c2 = metrics.classes?.['2'] || { area_km2: 0, percentage: 0 };
+    const c3 = metrics.classes?.['3'] || { area_km2: 0, percentage: 0 };
+    const c4 = metrics.classes?.['4'] || { area_km2: 0, percentage: 0 };
+
+    const telemetryContext = `ACTIVE NISAR L2 GCOV MISSION TELEMETRY:
+- Target Delta / Basin: ${metrics.region_name} (ID: ${metrics.region_id})
+- Observation Baseline: ${metrics.before_date?.split('T')[0] || 'Pre-Event'} → ${metrics.after_date?.split('T')[0] || 'Post-Event'}
+- Relative Orbit Track: ${metrics.orbit_track}, Frame: ${metrics.frame_number}, Direction: ${metrics.orbit_direction} Orbit
+- Total Observed Swath: ${metrics.total_swath_area_km2} km²
+- Classification Footprint:
+  * Class 1 (Open Floodwater / Specular Extinction): ${c1.area_km2} km² (${c1.percentage}% of swath)
+  * Class 2 (Flooded Canopy / Dihedral Double-Bounce): ${c2.area_km2} km² (${c2.percentage}% of swath)
+  * Class 3 (Managed Agricultural Inundation / Paddy): ${c3.area_km2} km² (${c3.percentage}% of swath)
+  * Class 4 (Wetland Drying / Sandbars): ${c4.area_km2} km² (${c4.percentage}% of swath)
+${selectedPolygon ? `- Currently Inspected Feature:
+  * Feature ID: ${selectedPolygon.id} (${selectedPolygon.class_name})
+  * GPS Coordinates: ${selectedPolygon.centroid?.[1]?.toFixed(5)}°N, ${selectedPolygon.centroid?.[0]?.toFixed(5)}°E
+  * Spatial Area: ${selectedPolygon.area_km2} km² (${selectedPolygon.area_hectares} ha)
+  * Radiometric Backscatter Shift: Pre-HH ${selectedPolygon.before_hh_db} dB → Post-HH ${selectedPolygon.after_hh_db} dB (ΔHH = ${selectedPolygon.delta_hh_db} dB)
+  * Multi-look Confidence: ${selectedPolygon.confidence != null ? (selectedPolygon.confidence * 100).toFixed(0) + '%' : 'N/A'}
+  * Hypothesis: ${selectedPolygon.driver_hypothesis}` : '- No individual polygon selected (analyzing full basin swath).'}
+
+USER QUESTION / FOCUS:
+${userPrompt || 'Provide an executive science briefing evaluating the flood extent, radar scattering mechanisms, and critical vulnerabilities across this delta.'}`;
+
+    const requestPayload = {
+      system_instruction: {
+        parts: [{ text: systemInstruction }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: telemetryContext }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 2500,
+      },
+    };
+
+    // Call Google Gemini REST API via fetch with 'x-goog-api-key' in HTTP headers
+    let apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    let res = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify(requestPayload),
+    });
+
+    // If Gemini 2.5 Flash returns 404, fall back to Gemini 3.5 Flash / 3.8 Flash
+    if (res.status === 404) {
+      apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+      const retryRes = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(requestPayload),
+      });
+      res = retryRes;
+    }
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      let errorJson: any = null;
       try {
-        const text = await callGemini(apiKey, buildAiPrompt(metrics, userPrompt, selectedPolygon));
-        const out: ReportResponse = {
-          report: text,
-          generatedWith: GEMINI_MODEL,
-          timestamp: new Date().toISOString(),
-        };
-        return NextResponse.json(out);
-      } catch (geminiError) {
-        fallbackReason = shortReason(geminiError);
-        console.warn('[api/report] Gemini unavailable, returning template report:', fallbackReason);
-      }
+        errorJson = JSON.parse(errorText);
+      } catch {}
+      const errorMessage =
+        errorJson?.error?.message ||
+        errorJson?.message ||
+        errorText ||
+        `Gemini API request failed with HTTP ${res.status}`;
+
+      console.warn(`Gemini API call failed (HTTP ${res.status}): ${errorMessage}. Falling back to template.`);
+      return NextResponse.json({
+        report: buildTemplateReport(metrics, userPrompt, selectedPolygon, errorMessage.slice(0, 120)),
+        generatedWith: TEMPLATE_ENGINE,
+        fallbackReason: errorMessage.slice(0, 120),
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const data = await res.json();
+    const reportText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!reportText || reportText.trim().length === 0) {
+      const fallbackReason = 'Gemini returned an empty text payload';
+      return NextResponse.json({
+        report: buildTemplateReport(metrics, userPrompt, selectedPolygon, fallbackReason),
+        generatedWith: TEMPLATE_ENGINE,
+        fallbackReason,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     const out: ReportResponse = {
-      report: buildTemplateReport(metrics, userPrompt, selectedPolygon, fallbackReason),
-      generatedWith: TEMPLATE_ENGINE,
-      fallbackReason,
+      report: reportText,
+      generatedWith: GEMINI_MODEL,
       timestamp: new Date().toISOString(),
     };
     return NextResponse.json(out);
-  } catch (error) {
-    console.error('API /api/report error:', error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+  } catch (error: any) {
+    const detail = error?.cause?.message || error?.cause?.code || error?.message || 'Unknown network error';
+    console.error('API /api/report error:', detail);
+
+    return NextResponse.json(
+      {
+        error: `Network/Server Error: ${detail}`,
+        status: 500,
+      },
+      { status: 500 }
+    );
   }
 }
